@@ -36,7 +36,7 @@ jobs:
 
       - name: Resolve drift policy
         id: drift-policy
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const labelName = "corpus-drift-approved";
@@ -66,7 +66,7 @@ jobs:
 
       - name: Collect changed files context
         if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require("fs");
@@ -158,7 +158,7 @@ jobs:
 
       - name: Upsert PR compare comment
         if: ${{ always() && github.event_name == 'pull_request' }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const fs = require("fs");
