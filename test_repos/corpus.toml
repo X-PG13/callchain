@@ -1,0 +1,32 @@
+version = 1
+
+[[projects]]
+name = "examples-smoke-repo"
+path = "../examples/smoke_repo"
+languages = ["python"]
+min_files = 3
+min_functions = 3
+min_edges = 2
+min_chains = 1
+max_parse_errors = 0
+
+[[projects]]
+name = "test-smoke-repo"
+path = "smoke_repo"
+languages = ["python"]
+min_files = 3
+min_functions = 3
+min_edges = 2
+min_chains = 1
+max_parse_errors = 0
+
+[[projects]]
+name = "click-src"
+path = "../downloaded_repos/pallets/click/src"
+languages = ["python"]
+min_files = 17
+min_functions = 400
+min_classes = 50
+min_edges = 450
+min_chains = 300
+max_parse_errors = 0

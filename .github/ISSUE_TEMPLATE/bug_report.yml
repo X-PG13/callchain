@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a defect or behavioral regression in CallChain
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a report. Please include a minimal reproduction when possible.
+
+  - type: input
+    id: version
+    attributes:
+      label: CallChain version
+      placeholder: e.g. 0.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: e.g. 3.12.3
+    validations:
+      required: true
+
+  - type: input
+    id: languages
+    attributes:
+      label: Target language(s)
+      placeholder: e.g. python, cpp
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Command or API usage
+      description: Paste the CLI command or code snippet that reproduces the issue.
+      render: bash
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal reproduction
+      description: Include a compact source file or repository layout when possible.
+    validations:
+      required: false

@@ -1,0 +1,60 @@
+name: Corpus Baseline
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+jobs:
+  baseline:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Prepare build directory
+        run: mkdir -p build
+
+      - name: Validate corpus source metadata
+        run: python scripts/check_corpus_sources.py
+
+      - name: Verify vendored archive provenance
+        run: python scripts/verify_corpus_source_archive.py click-src
+
+      - name: Capture baseline snapshot
+        run: python scripts/check_corpus.py --json --output build/corpus-baseline-snapshot.json
+
+      - name: Capture baseline benchmark
+        run: python scripts/benchmark_corpus.py --iterations 3 --warmup 1 --json --output build/corpus-baseline-benchmark.json
+
+      - name: Render baseline summary
+        run: |
+          {
+            echo "## Corpus Baseline"
+            echo
+            python scripts/check_corpus.py
+            echo
+            python scripts/benchmark_corpus.py --iterations 3 --warmup 1
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload baseline artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: corpus-baseline-${{ github.run_id }}
+          retention-days: 30
+          path: |
+            build/corpus-baseline-snapshot.json
+            build/corpus-baseline-benchmark.json
+            test_repos/sources.toml

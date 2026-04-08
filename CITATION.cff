@@ -1,0 +1,19 @@
+cff-version: 1.2.0
+message: "If you use CallChain in research, benchmarking, or tooling comparisons, please cite it using this metadata."
+title: CallChain
+type: software
+license: Apache-2.0
+abstract: "Multi-language static call chain analysis tool for Python, JavaScript, TypeScript, Java, Go, Rust, C, and C++."
+authors:
+  - alias: X-PG13
+    email: 2720174336@qq.com
+repository-code: "https://github.com/callchain/callchain"
+url: "https://github.com/callchain/callchain"
+version: 0.2.0a1
+date-released: 2026-04-08
+keywords:
+  - call graph
+  - static analysis
+  - call chain
+  - tree-sitter
+  - code analysis

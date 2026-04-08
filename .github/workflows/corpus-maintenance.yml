@@ -1,0 +1,113 @@
+name: Corpus Maintenance
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_name:
+        description: Vendored source name from test_repos/sources.toml
+        required: true
+        default: click-src
+        type: string
+      ref:
+        description: Optional target ref to materialize or refresh
+        required: false
+        default: ""
+        type: string
+      materialize:
+        description: Materialize the vendored source to the target ref on the runner
+        required: true
+        default: false
+        type: boolean
+      verify_archive:
+        description: Verify the rendered upstream archive checksum
+        required: true
+        default: true
+        type: boolean
+      compare_snapshots:
+        description: Capture before/after corpus snapshots and compare them when materializing
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    env:
+      SOURCE_NAME: ${{ inputs.source_name }}
+      TARGET_REF: ${{ inputs.ref }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Prepare build directory
+        run: mkdir -p build
+
+      - name: Capture baseline corpus snapshot
+        if: ${{ inputs.compare_snapshots || inputs.materialize }}
+        run: python scripts/check_corpus.py --json --output build/corpus-before.json
+
+      - name: Validate current corpus source metadata
+        run: python scripts/check_corpus_sources.py
+
+      - name: Verify current vendored archive
+        if: ${{ inputs.verify_archive }}
+        run: python scripts/verify_corpus_source_archive.py "$SOURCE_NAME"
+
+      - name: Require ref when materializing
+        if: ${{ inputs.materialize }}
+        run: |
+          if [ -z "$TARGET_REF" ]; then
+            echo "::error::The ref input is required when materialize=true."
+            exit 1
+          fi
+
+      - name: Materialize vendored source
+        if: ${{ inputs.materialize }}
+        run: python scripts/materialize_corpus_source.py "$SOURCE_NAME" --ref "$TARGET_REF"
+
+      - name: Re-validate source metadata after materialization
+        if: ${{ inputs.materialize }}
+        run: python scripts/check_corpus_sources.py
+
+      - name: Re-verify vendored archive after materialization
+        if: ${{ inputs.materialize && inputs.verify_archive }}
+        run: python scripts/verify_corpus_source_archive.py "$SOURCE_NAME"
+
+      - name: Capture post-materialization corpus snapshot
+        if: ${{ inputs.materialize && inputs.compare_snapshots }}
+        run: python scripts/check_corpus.py --json --output build/corpus-after.json
+
+      - name: Compare corpus snapshots
+        if: ${{ inputs.materialize && inputs.compare_snapshots }}
+        run: python scripts/compare_corpus_reports.py --baseline build/corpus-before.json --candidate build/corpus-after.json --json --output build/corpus-compare.json
+
+      - name: Capture source registry diff
+        if: ${{ inputs.materialize }}
+        run: |
+          git diff -- test_repos/sources.toml > build/corpus-sources.diff || true
+
+      - name: Upload corpus maintenance artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: corpus-maintenance-${{ github.run_id }}
+          if-no-files-found: ignore
+          path: |
+            build/corpus-before.json
+            build/corpus-after.json
+            build/corpus-compare.json
+            build/corpus-sources.diff
+            test_repos/sources.toml

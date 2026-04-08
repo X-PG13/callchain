@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+TestResults.xml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific
+downloaded_repos/
+test_output/
+*.jsonl
+*.dot
+
+# Build caches
+.mypy_cache/
+.ruff_cache/
+.callchain_cache/
+
+# Security and audit artifacts
+*.sarif
+*.sbom.json
+*.cdx.json

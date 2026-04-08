@@ -1,0 +1,219 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Collect corpus baseline release state
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const { owner, repo } = context.repo;
+            const targetBranch = context.payload.release.target_commitish || context.payload.repository.default_branch;
+            async function latestSuccessfulRun(workflowId, artifactPrefix, branchName) {
+              const params = {
+                owner,
+                repo,
+                workflow_id: workflowId,
+                per_page: 100,
+              };
+              if (branchName) {
+                params.branch = branchName;
+              }
+              const runs = await github.paginate(github.rest.actions.listWorkflowRuns, params);
+              const successful = runs.find((run) => run.conclusion === "success");
+              if (!successful) {
+                return null;
+              }
+              const artifactResponse = await github.rest.actions.listWorkflowRunArtifacts({
+                owner,
+                repo,
+                run_id: successful.id,
+                per_page: 100,
+              });
+              const artifacts = artifactResponse.data.artifacts || [];
+              const artifact = artifacts.find((candidate) => candidate.name.startsWith(artifactPrefix)) || artifacts[0] || null;
+              return {
+                run_id: successful.id,
+                created_at: successful.created_at,
+                html_url: successful.html_url,
+                head_sha: successful.head_sha,
+                head_branch: successful.head_branch,
+                event: successful.event,
+                artifact_name: artifact ? artifact.name : null,
+                artifact_id: artifact ? artifact.id : null,
+                artifact_url: artifact
+                  ? `https://github.com/${owner}/${repo}/actions/runs/${successful.id}/artifacts/${artifact.id}`
+                  : null,
+                artifact_expired: artifact ? artifact.expired : null,
+              };
+            }
+            const baseline = await latestSuccessfulRun("corpus-baseline.yml", "corpus-baseline-", targetBranch);
+            const compare = await latestSuccessfulRun("corpus-baseline-compare.yml", "corpus-baseline-compare-", targetBranch);
+            const refresh = await latestSuccessfulRun("corpus-baseline-refresh.yml", "corpus-baseline-refresh-", targetBranch);
+            fs.mkdirSync("build", { recursive: true });
+            fs.writeFileSync(
+              path.join("build", "release-corpus-baseline-state.json"),
+              JSON.stringify({ target_branch: targetBranch, baseline, compare, refresh }, null, 2),
+            );
+
+      - name: Render release corpus state summary
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          COMPARE_RUN_ID="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("build/release-corpus-baseline-state.json").read_text(encoding="utf-8"))
+          compare = data.get("compare") or {}
+          print(compare.get("run_id") or "")
+          PY
+          )"
+          COMPARE_ARTIFACT_NAME="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("build/release-corpus-baseline-state.json").read_text(encoding="utf-8"))
+          compare = data.get("compare") or {}
+          print(compare.get("artifact_name") or "")
+          PY
+          )"
+          if [ -n "$COMPARE_RUN_ID" ] && [ -n "$COMPARE_ARTIFACT_NAME" ]; then
+            gh run download "$COMPARE_RUN_ID" --dir build/release-compare --pattern "$COMPARE_ARTIFACT_NAME"
+            COMPARE_REPORT="$(find build/release-compare -name 'corpus-baseline-compare.json' -print -quit)"
+            COMPARE_MARKDOWN="$(find build/release-compare -name 'corpus-baseline-compare.md' -print -quit)"
+            if [ -n "$COMPARE_REPORT" ] || [ -n "$COMPARE_MARKDOWN" ]; then
+              cmd=(python scripts/render_release_corpus_state.py --state build/release-corpus-baseline-state.json)
+              if [ -n "$COMPARE_REPORT" ]; then
+                cmd+=(--compare-report "$COMPARE_REPORT")
+              fi
+              if [ -n "$COMPARE_MARKDOWN" ]; then
+                cmd+=(--compare-markdown "$COMPARE_MARKDOWN")
+              fi
+              cmd+=(--json --output build/release-corpus-baseline-state.json)
+              "${cmd[@]}"
+            fi
+          fi
+          python scripts/render_release_corpus_state.py \
+            --state build/release-corpus-baseline-state.json \
+            --markdown \
+            --output build/release-corpus-baseline-state.md
+          cat build/release-corpus-baseline-state.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload release corpus state artifacts
+        id: upload-release-corpus-state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-corpus-state
+          path: |
+            build/release-corpus-baseline-state.json
+            build/release-corpus-baseline-state.md
+
+      - name: Validate version matches release tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python scripts/check_release.py \
+            --expected-tag "$RELEASE_TAG" \
+            --corpus-baseline-state build/release-corpus-baseline-state.json
+
+      - name: Run quality gates
+        run: |
+          python -m ruff check src tests
+          python -m mypy src
+          python -m pytest --cov=callchain --cov-report=term-missing --cov-fail-under=90 -q
+
+      - name: Build distributions
+        run: python -m build
+
+      - name: Check distributions
+        run: python -m twine check dist/*
+
+      - name: Upload release artifacts
+        id: upload-release-dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dist
+          path: dist/*
+
+      - name: Render release corpus audit section
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          WORKFLOW_RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          STATE_ARTIFACT_URL: ${{ steps.upload-release-corpus-state.outputs.artifact-url }}
+          DIST_ARTIFACT_URL: ${{ steps.upload-release-dist.outputs.artifact-url }}
+        run: |
+          python scripts/render_release_corpus_state.py \
+            --state build/release-corpus-baseline-state.json \
+            --release-notes \
+            --release-tag "$RELEASE_TAG" \
+            --workflow-run-url "$WORKFLOW_RUN_URL" \
+            --state-artifact-url "$STATE_ARTIFACT_URL" \
+            --dist-artifact-url "$DIST_ARTIFACT_URL" \
+            --output build/release-corpus-audit.md
+          cat build/release-corpus-audit.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Update GitHub release body with corpus audit
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const marker = "callchain-release-corpus-audit";
+            const markerStart = `<!-- ${marker}:start -->`;
+            const markerEnd = `<!-- ${marker}:end -->`;
+            const { owner, repo } = context.repo;
+            const releaseId = context.payload.release.id;
+            const section = fs.readFileSync("build/release-corpus-audit.md", "utf8").trim();
+            const release = await github.rest.repos.getRelease({
+              owner,
+              repo,
+              release_id: releaseId,
+            });
+            const body = release.data.body || "";
+            const escapedStart = markerStart.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const escapedEnd = markerEnd.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const sectionPattern = new RegExp(`${escapedStart}[\\s\\S]*?${escapedEnd}\\n?`, "m");
+            const updatedBody = sectionPattern.test(body)
+              ? body.replace(sectionPattern, `${section}\n`)
+              : body.trim()
+                ? `${body.trim()}\n\n${section}\n`
+                : `${section}\n`;
+            await github.rest.repos.updateRelease({
+              owner,
+              repo,
+              release_id: releaseId,
+              body: updatedBody,
+            });
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: dist/*
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

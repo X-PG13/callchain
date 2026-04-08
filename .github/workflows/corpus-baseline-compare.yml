@@ -1,0 +1,220 @@
+name: Corpus Baseline Compare
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      allow_summary_drift:
+        description: "Allow structural drift and keep the workflow green after reporting it."
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Prepare build directory
+        run: mkdir -p build
+
+      - name: Resolve drift policy
+        id: drift-policy
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labelName = "corpus-drift-approved";
+            const labels = context.payload.pull_request?.labels?.map((label) => label.name) ?? [];
+            const inputAllowed = "${{ github.event.inputs.allow_summary_drift || 'false' }}" === "true";
+            const hasLabel = labels.includes(labelName);
+            let waived = false;
+            let reason = "not enabled";
+            if (hasLabel) {
+              waived = true;
+              reason = `PR label ${labelName}`;
+            } else if (inputAllowed) {
+              waived = true;
+              reason = "workflow_dispatch input allow_summary_drift";
+            }
+            core.setOutput("waived", waived ? "true" : "false");
+            core.setOutput("reason", reason);
+
+      - name: Resolve baseline branch
+        id: baseline-branch
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "name=${{ github.event.pull_request.base.ref }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${{ github.event.repository.default_branch }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Collect changed files context
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+            const { owner, repo } = context.repo;
+            const pull_number = context.payload.pull_request.number;
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner,
+              repo,
+              pull_number,
+              per_page: 100,
+            });
+            fs.mkdirSync("build", { recursive: true });
+            fs.writeFileSync(
+              path.join("build", "corpus-changed-files.json"),
+              JSON.stringify(files.map((file) => file.filename), null, 2),
+            );
+
+      - name: Download latest official baseline artifact
+        id: baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_ID="$(gh run list --workflow "Corpus Baseline" --branch "${{ steps.baseline-branch.outputs.name }}" --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "No successful Corpus Baseline run found on branch ${{ steps.baseline-branch.outputs.name }}." >&2
+            exit 1
+          fi
+          gh run download "$RUN_ID" --dir build/official-baseline --pattern "corpus-baseline-*"
+          BASELINE_SNAPSHOT="$(find build/official-baseline -name 'corpus-baseline-snapshot.json' -print -quit)"
+          if [ -z "$BASELINE_SNAPSHOT" ]; then
+            echo "Downloaded baseline artifact did not contain corpus-baseline-snapshot.json." >&2
+            exit 1
+          fi
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "snapshot=$BASELINE_SNAPSHOT" >> "$GITHUB_OUTPUT"
+
+      - name: Validate current corpus source metadata
+        run: python scripts/check_corpus_sources.py
+
+      - name: Capture current snapshot
+        run: python scripts/check_corpus.py --json --output build/corpus-current-snapshot.json
+
+      - name: Generate structural compare report
+        run: |
+          cmd=(
+            python scripts/compare_corpus_reports.py
+            --baseline "${{ steps.baseline.outputs.snapshot }}"
+            --candidate build/corpus-current-snapshot.json
+            --metric summary
+          )
+          if [ -f build/corpus-changed-files.json ]; then
+            cmd+=(--changed-files build/corpus-changed-files.json)
+          fi
+          if [ -f .github/CODEOWNERS ]; then
+            cmd+=(--codeowners .github/CODEOWNERS)
+          fi
+          cmd+=(--json --output build/corpus-baseline-compare.json)
+          "${cmd[@]}"
+
+      - name: Render compare markdown
+        run: |
+          cmd=(
+            python scripts/compare_corpus_reports.py
+            --baseline "${{ steps.baseline.outputs.snapshot }}"
+            --candidate build/corpus-current-snapshot.json
+            --metric summary
+          )
+          if [ -f build/corpus-changed-files.json ]; then
+            cmd+=(--changed-files build/corpus-changed-files.json)
+          fi
+          if [ -f .github/CODEOWNERS ]; then
+            cmd+=(--codeowners .github/CODEOWNERS)
+          fi
+          cmd+=(--markdown --output build/corpus-baseline-compare.md)
+          "${cmd[@]}"
+
+      - name: Render compare summary
+        run: |
+          {
+            echo "## Corpus Baseline Compare"
+            echo
+            echo "- Baseline branch: \`${{ steps.baseline-branch.outputs.name }}\`"
+            echo "- Baseline run id: \`${{ steps.baseline.outputs.run_id }}\`"
+            echo "- Drift waiver: \`${{ steps.drift-policy.outputs.reason }}\`"
+            echo
+            cat build/corpus-baseline-compare.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upsert PR compare comment
+        if: ${{ always() && github.event_name == 'pull_request' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const marker = "<!-- callchain-corpus-baseline-compare -->";
+            const body = fs.readFileSync("build/corpus-baseline-compare.md", "utf8");
+            const commentBody = `${marker}
+
+            > Baseline branch: \`${{ steps.baseline-branch.outputs.name }}\`  
+            > Baseline run id: \`${{ steps.baseline.outputs.run_id }}\`
+            > Drift waiver: \`${{ steps.drift-policy.outputs.reason }}\`
+
+            ${body}`;
+            const issue_number = context.payload.pull_request.number;
+            const { owner, repo } = context.repo;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+            const existing = comments.find((comment) => comment.body && comment.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: existing.id,
+                body: commentBody,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number,
+                body: commentBody,
+              });
+            }
+
+      - name: Upload compare artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: corpus-baseline-compare-${{ github.run_id }}
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
+            build/official-baseline
+            build/corpus-current-snapshot.json
+            build/corpus-changed-files.json
+            build/corpus-baseline-compare.json
+            build/corpus-baseline-compare.md
+
+      - name: Enforce no summary drift from official baseline
+        if: ${{ steps.drift-policy.outputs.waived != 'true' }}
+        run: |
+          python scripts/compare_corpus_reports.py \
+            --baseline "${{ steps.baseline.outputs.snapshot }}" \
+            --candidate build/corpus-current-snapshot.json \
+            --metric summary \
+            --fail-on-summary-drift

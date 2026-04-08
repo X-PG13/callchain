@@ -1,0 +1,38 @@
+name: Post-release Smoke
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Release install smoke
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          python scripts/install_smoke.py \
+            --package-spec "callchain==${VERSION}" \
+            --index-url https://pypi.org/simple/ \
+            --example examples/smoke_repo \
+            --json \
+            --output build/post-release-install-smoke.json
+
+      - name: Upload smoke artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: post-release-install-smoke
+          path: build/post-release-install-smoke.json

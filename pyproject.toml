@@ -1,0 +1,112 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "callchain"
+version = "0.2.0a1"
+description = "Multi-language call chain analysis tool — extract call graphs, enumerate call chains, and analyze code structure across Python, JavaScript, TypeScript, Java, Go, Rust, C, and C++."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.10"
+authors = [
+    { name = "X-PG13", email = "2720174336@qq.com" },
+]
+maintainers = [
+    { name = "X-PG13", email = "2720174336@qq.com" },
+]
+keywords = ["call-graph", "static-analysis", "call-chain", "code-analysis", "multi-language"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Quality Assurance",
+    "Topic :: Software Development :: Testing",
+    "Typing :: Typed",
+]
+dependencies = [
+    "tree-sitter>=0.21.0",
+    "tree-sitter-python>=0.21.0",
+    "tree-sitter-javascript>=0.21.0",
+    "tree-sitter-java>=0.21.0",
+    "tree-sitter-go>=0.21.0",
+    "tree-sitter-rust>=0.21.0",
+    "tree-sitter-typescript>=0.21.0",
+    "tree-sitter-c>=0.21.0",
+    "tree-sitter-cpp>=0.21.0",
+    "click>=8.0",
+    "rich>=13.0",
+    "tomli>=2.0; python_version < '3.11'",
+    "watchdog>=3.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov",
+    "black",
+    "ruff",
+    "mypy",
+    "pip-audit>=2.7",
+    "build",
+    "pre-commit",
+    "twine",
+]
+
+[project.scripts]
+callchain = "callchain.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/callchain/callchain"
+Repository = "https://github.com/callchain/callchain"
+Documentation = "https://github.com/callchain/callchain#readme"
+Issues = "https://github.com/callchain/callchain/issues"
+Support = "https://github.com/callchain/callchain/discussions"
+Security = "https://github.com/callchain/callchain/security/policy"
+Changelog = "https://github.com/callchain/callchain/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/callchain"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/callchain/py.typed" = "callchain/py.typed"
+
+[tool.hatch.build.targets.sdist]
+exclude = [
+    "/downloaded_repos",
+    "/downloaded_repos/**",
+    "/legacy",
+    "/legacy/**",
+    "/test_output",
+    "/test_output/**",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = ["--strict-config", "--strict-markers"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint.per-file-ignores]
+"tests/fixtures/**/*.py" = ["F401"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+warn_unused_ignores = true
+strict_equality = true
+
+[tool.coverage.report]
+fail_under = 90
+show_missing = true
+skip_covered = false

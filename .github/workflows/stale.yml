@@ -1,0 +1,40 @@
+name: Stale Triage
+
+on:
+  schedule:
+    - cron: "30 2 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v10
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          days-before-issue-stale: 45
+          days-before-issue-close: 14
+          days-before-pr-stale: 45
+          days-before-pr-close: 14
+          stale-issue-label: stale
+          stale-pr-label: stale
+          remove-stale-when-updated: true
+          operations-per-run: 200
+          exempt-issue-labels: "security,good first issue,help wanted"
+          exempt-pr-labels: "security"
+          stale-issue-message: >
+            This issue has been inactive for 45 days. If it is still relevant, add an update
+            or the `stale` label will lead to automatic closure in 14 days.
+          close-issue-message: >
+            Closing due to inactivity after the stale period. Comment with new details if this
+            still needs attention.
+          stale-pr-message: >
+            This pull request has been inactive for 45 days. Please push an update or comment
+            if it should remain open.
+          close-pr-message: >
+            Closing this pull request due to inactivity after the stale period.

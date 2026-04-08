@@ -1,0 +1,36 @@
+version = 1
+
+[[sources]]
+name = "examples-smoke-repo"
+kind = "local"
+analyzed_path = "../examples/smoke_repo"
+root_path = "../examples/smoke_repo"
+license_spdx = "Apache-2.0"
+license_file = "../LICENSE"
+content_sha256 = "2e57c8bcc094dc5f278acc5893214ac8e7c5e84422775374aadf85a5c6bd54bf"
+notes = "In-tree smoke repository maintained alongside CallChain."
+
+[[sources]]
+name = "test-smoke-repo"
+kind = "local"
+analyzed_path = "smoke_repo"
+root_path = "smoke_repo"
+license_spdx = "Apache-2.0"
+license_file = "../LICENSE"
+content_sha256 = "71940022df70cb8d86643e80bbeeeb03c972f666348c8b644bf28faa8b774b05"
+notes = "Test-only smoke repository used for deterministic end-to-end validation."
+
+[[sources]]
+name = "click-src"
+kind = "vendored"
+analyzed_path = "../downloaded_repos/pallets/click/src"
+root_path = "../downloaded_repos/pallets/click"
+license_spdx = "BSD-3-Clause"
+license_file = "../downloaded_repos/pallets/click/LICENSE.txt"
+upstream_url = "https://github.com/pallets/click"
+version = "8.3.dev"
+source_ref = "cdab890e57a30a9f437b88ce9652f7bfce980c1f"
+archive_url = "https://codeload.github.com/pallets/click/tar.gz/{ref}"
+archive_sha256 = "18dd5721f4d7f7d288eb492c162966cb75b26b540ed9843b3fe419c8b0e082ef"
+content_sha256 = "6ca33176020801fda05f9d7398052c8b5afe51617be71d8bcbb3eb8d3818846a"
+notes = "Vendored Click snapshot used for parser, resolver, and corpus regression coverage."
