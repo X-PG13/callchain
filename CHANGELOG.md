@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.0a2] - 2026-04-08
+### Changed
+- Vendored the `click-src` corpus snapshot into `test_repos/vendored/click` so corpus baseline, release validation, and GitHub-hosted workflows no longer depend on a local `downloaded_repos/` checkout.
+
 ## [0.2.0a1] - 2026-04-08
 ### Added
 - Dependency review, release drafter, and PR autolabeler workflows for tighter repository automation

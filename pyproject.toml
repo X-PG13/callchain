@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "callchain"
-version = "0.2.0a1"
+version = "0.2.0a2"
 description = "Multi-language call chain analysis tool — extract call graphs, enumerate call chains, and analyze code structure across Python, JavaScript, TypeScript, Java, Go, Rust, C, and C++."
 readme = "README.md"
 license = "Apache-2.0"

@@ -9,7 +9,7 @@ authors:
     email: 2720174336@qq.com
 repository-code: "https://github.com/callchain/callchain"
 url: "https://github.com/callchain/callchain"
-version: 0.2.0a1
+version: 0.2.0a2
 date-released: 2026-04-08
 keywords:
   - call graph
