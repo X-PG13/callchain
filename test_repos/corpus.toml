@@ -22,7 +22,7 @@ max_parse_errors = 0
 
 [[projects]]
 name = "click-src"
-path = "../downloaded_repos/pallets/click/src"
+path = "vendored/click/src"
 languages = ["python"]
 min_files = 17
 min_functions = 400

@@ -23,10 +23,10 @@ notes = "Test-only smoke repository used for deterministic end-to-end validation
 [[sources]]
 name = "click-src"
 kind = "vendored"
-analyzed_path = "../downloaded_repos/pallets/click/src"
-root_path = "../downloaded_repos/pallets/click"
+analyzed_path = "vendored/click/src"
+root_path = "vendored/click"
 license_spdx = "BSD-3-Clause"
-license_file = "../downloaded_repos/pallets/click/LICENSE.txt"
+license_file = "vendored/click/LICENSE.txt"
 upstream_url = "https://github.com/pallets/click"
 version = "8.3.dev"
 source_ref = "cdab890e57a30a9f437b88ce9652f7bfce980c1f"
