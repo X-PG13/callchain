@@ -127,7 +127,7 @@ jobs:
       - name: Upload release corpus state artifacts
         id: upload-release-corpus-state
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-corpus-state
           path: |
@@ -156,7 +156,7 @@ jobs:
 
       - name: Upload release artifacts
         id: upload-release-dist
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: release-dist
           path: dist/*

@@ -38,7 +38,7 @@ jobs:
           python -m pip_audit -f cyclonedx-json -o build/callchain-sbom.cdx.json .
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: callchain-sbom
           path: build/callchain-sbom.cdx.json
