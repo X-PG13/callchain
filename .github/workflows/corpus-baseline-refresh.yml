@@ -97,7 +97,7 @@ jobs:
             }
 
       - name: Upload baseline refresh artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: corpus-baseline-refresh-${{ github.event.pull_request.number }}-${{ github.run_id }}
           retention-days: 30

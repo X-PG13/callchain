@@ -50,7 +50,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload baseline artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: corpus-baseline-${{ github.run_id }}
           retention-days: 30

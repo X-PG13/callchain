@@ -101,7 +101,7 @@ jobs:
             --example examples/smoke_repo \
             --json \
             --output build/install-smoke.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: install-smoke-${{ matrix.python-version }}
           path: build/install-smoke.json
