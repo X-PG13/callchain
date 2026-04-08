@@ -9,6 +9,7 @@ import importlib
 import io
 import json
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -1990,24 +1991,53 @@ def _extract_archive_bytes(archive_bytes: bytes, destination_root: Path) -> Path
 def _safe_extract_tar(archive: tarfile.TarFile, destination_root: Path) -> None:
     root_resolved = destination_root.resolve()
     for member in archive.getmembers():
-        _ensure_archive_member_within_root(root_resolved, member.name)
-    extract_kwargs: dict[str, Any] = {}
-    if sys.version_info >= (3, 12):
-        extract_kwargs["filter"] = "data"
-    archive.extractall(destination_root, **extract_kwargs)
+        target = _ensure_archive_member_within_root(root_resolved, member.name)
+        if member.isdir():
+            target.mkdir(parents=True, exist_ok=True)
+            target.chmod(0o755)
+            continue
+        if member.issym() or member.islnk():
+            raise ValueError(f"Archive member {member.name!r} uses an unsupported link type.")
+        if not member.isfile():
+            raise ValueError(f"Archive member {member.name!r} uses an unsupported tar entry type.")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        source = archive.extractfile(member)
+        if source is None:
+            raise ValueError(f"Archive member {member.name!r} could not be read from the archive.")
+        with source, target.open("wb") as handle:
+            shutil.copyfileobj(source, handle)
+        _apply_archive_mode(target, member.mode, is_dir=False)
 
 
 def _safe_extract_zip(archive: zipfile.ZipFile, destination_root: Path) -> None:
     root_resolved = destination_root.resolve()
-    for member_name in archive.namelist():
-        _ensure_archive_member_within_root(root_resolved, member_name)
-    archive.extractall(destination_root)
+    for member in archive.infolist():
+        target = _ensure_archive_member_within_root(root_resolved, member.filename)
+        if member.is_dir():
+            target.mkdir(parents=True, exist_ok=True)
+            target.chmod(0o755)
+            continue
+        mode = member.external_attr >> 16
+        if stat.S_ISLNK(mode):
+            raise ValueError(f"Archive member {member.filename!r} uses an unsupported link type.")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with archive.open(member) as source, target.open("wb") as handle:
+            shutil.copyfileobj(source, handle)
+        _apply_archive_mode(target, mode, is_dir=False)
 
 
-def _ensure_archive_member_within_root(root_resolved: Path, member_name: str) -> None:
+def _ensure_archive_member_within_root(root_resolved: Path, member_name: str) -> Path:
     target = (root_resolved / member_name).resolve()
     if not target.is_relative_to(root_resolved):
         raise ValueError(f"Archive member {member_name!r} would extract outside {root_resolved}.")
+    return target
+
+
+def _apply_archive_mode(target: Path, mode: int, *, is_dir: bool) -> None:
+    safe_mode = 0o755 if is_dir else 0o644
+    if mode & 0o111:
+        safe_mode = 0o755
+    target.chmod(safe_mode)
 
 
 def _normalize_extracted_root(destination_root: Path) -> Path:

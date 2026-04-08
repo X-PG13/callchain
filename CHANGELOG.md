@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed
+- Hardened corpus archive extraction to reject unsafe archive member types without relying on bulk `extractall` calls.
+- Narrowed CodeQL analysis away from vendored and legacy sample trees, added explicit CI workflow permissions, and pinned mutable third-party workflow actions to immutable commit SHAs.
+
 ## [0.2.0a2] - 2026-04-08
 ### Changed
 - Vendored the `click-src` corpus snapshot into `test_repos/vendored/click` so corpus baseline, release validation, and GitHub-hosted workflows no longer depend on a local `downloaded_repos/` checkout.

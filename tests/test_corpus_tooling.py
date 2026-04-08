@@ -1037,6 +1037,24 @@ def test_archive_extraction_helpers_support_zip_and_block_escape(tmp_path):
     with pytest.raises(ValueError, match="would extract outside"):
         corpus._extract_archive_bytes(tar_buffer.getvalue(), tmp_path / "bad-extract")
 
+    symlink_tar_buffer = io.BytesIO()
+    with tarfile.open(fileobj=symlink_tar_buffer, mode="w:gz") as archive:
+        info = tarfile.TarInfo(name="sample-root/link.txt")
+        info.type = tarfile.SYMTYPE
+        info.linkname = "/tmp/outside"
+        archive.addfile(info)
+    with pytest.raises(ValueError, match="unsupported link type"):
+        corpus._extract_archive_bytes(symlink_tar_buffer.getvalue(), tmp_path / "bad-link-extract")
+
+    symlink_zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(symlink_zip_buffer, "w") as archive:
+        info = zipfile.ZipInfo("sample-root/link.txt")
+        info.create_system = 3
+        info.external_attr = (0o120777 << 16)
+        archive.writestr(info, "outside")
+    with pytest.raises(ValueError, match="unsupported link type"):
+        corpus._extract_archive_bytes(symlink_zip_buffer.getvalue(), tmp_path / "bad-zip-link-extract")
+
     source_root = tmp_path / "source-root"
     source_root.mkdir()
     (source_root / "fresh.txt").write_text("fresh\n", encoding="utf-8")

@@ -11,6 +11,12 @@ except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
     import tomli as tomllib  # type: ignore[no-redef]
 
 
+PINNED_RELEASE_DRAFTER_SHA = "139054aeaa9adc52ab36ddf67437541f039b88e2"
+PINNED_LABEL_SYNC_SHA = "52074158190acb45f3077f9099fea818aa43f97a"
+PINNED_PIP_AUDIT_SHA = "1220774d901786e6f652ae159f7b6bc8fea6d266"
+PINNED_PYPI_PUBLISH_SHA = "cef221092ed1bacb1cc03d23a2d87d1d172e277b"
+
+
 def test_release_workflow_has_publish_and_attestation_steps():
     workflow = Path(".github/workflows/release.yml").read_text(encoding="utf-8")
 
@@ -67,6 +73,7 @@ def test_release_workflow_has_publish_and_attestation_steps():
     assert "contents: write" in workflow
     assert "python scripts/check_release.py \\" in workflow
     assert '--expected-tag "$RELEASE_TAG" \\' in workflow
+    assert f"pypa/gh-action-pypi-publish@{PINNED_PYPI_PUBLISH_SHA} # release/v1" in workflow
 
 
 def test_dependabot_configuration_covers_python_and_actions():
@@ -85,9 +92,9 @@ def test_repository_automation_workflows_cover_dependency_review_and_triage():
     stale = Path(".github/workflows/stale.yml").read_text(encoding="utf-8")
 
     assert "actions/dependency-review-action@v4" in dependency_review
-    assert "release-drafter/release-drafter@v7" in release_drafter
-    assert "release-drafter/release-drafter/autolabeler@v7" in autolabeler
-    assert "EndBug/label-sync@v2" in label_sync
+    assert f"release-drafter/release-drafter@{PINNED_RELEASE_DRAFTER_SHA} # v7" in release_drafter
+    assert f"release-drafter/release-drafter/autolabeler@{PINNED_RELEASE_DRAFTER_SHA} # v7" in autolabeler
+    assert f"EndBug/label-sync@{PINNED_LABEL_SYNC_SHA} # v2" in label_sync
     assert "actions/stale@v10" in stale
     assert "days-before-issue-stale: 45" in stale
     assert "days-before-pr-close: 14" in stale
@@ -96,15 +103,19 @@ def test_repository_automation_workflows_cover_dependency_review_and_triage():
 
 def test_security_workflows_cover_codeql_dependency_audit_and_sbom_export():
     codeql = Path(".github/workflows/codeql.yml").read_text(encoding="utf-8")
+    codeql_config = Path(".github/codeql/codeql-config.yml").read_text(encoding="utf-8")
     security_audit = Path(".github/workflows/security-audit.yml").read_text(encoding="utf-8")
 
     assert "github/codeql-action/init@v4" in codeql
     assert "github/codeql-action/analyze@v4" in codeql
+    assert "config-file: ./.github/codeql/codeql-config.yml" in codeql
     assert "security-events: write" in codeql
     assert "language: actions" in codeql
     assert "queries: security-extended" in codeql
+    assert "test_repos/**" in codeql_config
+    assert "legacy/**" in codeql_config
 
-    assert "pypa/gh-action-pip-audit@v1.1.0" in security_audit
+    assert f"pypa/gh-action-pip-audit@{PINNED_PIP_AUDIT_SHA} # v1.1.0" in security_audit
     assert "python -m pip_audit -f cyclonedx-json" in security_audit
     assert "actions/upload-artifact@v4" in security_audit
     assert "name: callchain-sbom" in security_audit
@@ -224,6 +235,7 @@ def test_repo_contains_governance_and_release_docs():
         ".github/workflows/ci.yml",
         ".github/workflows/corpus-maintenance.yml",
         ".github/workflows/codeql.yml",
+        ".github/codeql/codeql-config.yml",
         ".github/workflows/testpypi-rehearsal.yml",
         ".github/workflows/post-release-smoke.yml",
         ".github/workflows/label-sync.yml",
@@ -255,6 +267,8 @@ def test_repo_does_not_contain_python_bytecode_artifacts():
 def test_ci_workflow_includes_dedicated_corpus_job():
     workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
 
+    assert "permissions:" in workflow
+    assert "contents: read" in workflow
     assert "\n  corpus:\n" in workflow
     assert "python scripts/check_corpus.py" in workflow
     assert "python scripts/check_corpus_sources.py" in workflow
@@ -283,7 +297,7 @@ def test_registry_smoke_workflows_cover_testpypi_rehearsal_and_post_release_chec
     assert "environment:" in rehearsal
     assert "name: testpypi" in rehearsal
     assert "id-token: write" in rehearsal
-    assert "pypa/gh-action-pypi-publish@release/v1" in rehearsal
+    assert f"pypa/gh-action-pypi-publish@{PINNED_PYPI_PUBLISH_SHA} # release/v1" in rehearsal
     assert "repository-url: https://test.pypi.org/legacy/" in rehearsal
     assert "skip-existing: true" in rehearsal
     assert 'python scripts/install_smoke.py \\' in rehearsal

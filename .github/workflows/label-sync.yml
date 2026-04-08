@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: .github/labels.yml
-      - uses: EndBug/label-sync@v2
+      - uses: EndBug/label-sync@52074158190acb45f3077f9099fea818aa43f97a # v2
         with:
           config-file: .github/labels.yml
           delete-other-labels: false
