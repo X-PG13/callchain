@@ -41,7 +41,7 @@ dependencies = [
     "tree-sitter-c>=0.21.0",
     "tree-sitter-cpp>=0.21.0",
     "click>=8.0",
-    "rich>=13.0",
+    "rich>=15.0.0",
     "tomli>=2.0; python_version < '3.11'",
     "watchdog>=3.0",
 ]
