@@ -53,7 +53,7 @@ dev = [
     "black",
     "ruff",
     "mypy",
-    "pip-audit>=2.7",
+    "pip-audit>=2.10.1",
     "build",
     "pre-commit",
     "twine",
