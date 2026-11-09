@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+- Excluded `tree-sitter` 0.26.0, which segfaults while walking parse nodes (py-tree-sitter#472). The same crash reproduces on Ubuntu 24.04 and on macOS runners.
+- Capped the dev `ruff` dependency below 0.16 so CI lint stays on the rule set this tree already passes.
+
 ### Changed
 - Hardened corpus archive extraction to reject unsafe archive member types without relying on bulk `extractall` calls.
 - Narrowed CodeQL analysis away from vendored and legacy sample trees, added explicit CI workflow permissions, and pinned mutable third-party workflow actions to immutable commit SHAs.
