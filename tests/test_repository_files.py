@@ -5,16 +5,59 @@ from __future__ import annotations
 from pathlib import Path
 import re
 
+import pytest
+
 try:
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover - Python 3.10 fallback
     import tomli as tomllib  # type: ignore[no-redef]
 
 
-PINNED_RELEASE_DRAFTER_SHA = "139054aeaa9adc52ab36ddf67437541f039b88e2"
-PINNED_LABEL_SYNC_SHA = "52074158190acb45f3077f9099fea818aa43f97a"
-PINNED_PIP_AUDIT_SHA = "1220774d901786e6f652ae159f7b6bc8fea6d266"
-PINNED_PYPI_PUBLISH_SHA = "cef221092ed1bacb1cc03d23a2d87d1d172e277b"
+# Third-party actions stay pinned to a full commit SHA. The version comment is the
+# downgrade floor: Dependabot may advance the SHA and the comment, but a floating
+# tag, a missing pin, or an older version comment fails the contract.
+_ACTION_USE_RE = re.compile(
+    r"(?m)^[ \t]*(?:-[ \t]*)?uses:[ \t]*"
+    r"(?P<action>[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)+)"
+    r"@(?P<ref>[^\s#]+)"
+    r"(?:[ \t]+#[ \t]*(?P<comment>\S+))?[ \t]*$"
+)
+_VERSION_COMMENT_RE = re.compile(r"(?:release/)?v(\d+(?:\.\d+)*)$")
+
+
+def _version_tuple(comment: str) -> tuple[int, ...]:
+    match = _VERSION_COMMENT_RE.fullmatch(comment.strip())
+    assert match is not None, f"unrecognized action version comment {comment!r}"
+    return tuple(int(part) for part in match.group(1).split("."))
+
+
+def _version_at_least(actual: tuple[int, ...], minimum: tuple[int, ...]) -> bool:
+    width = max(len(actual), len(minimum))
+    padded_actual = actual + (0,) * (width - len(actual))
+    padded_minimum = minimum + (0,) * (width - len(minimum))
+    return padded_actual >= padded_minimum
+
+
+def _rewrite_action_pin(workflow: str, action: str, *, ref: str, comment: str) -> str:
+    match = next(item for item in _ACTION_USE_RE.finditer(workflow) if item.group("action") == action)
+    prefix = match.group(0).split("uses:", 1)[0]
+    return workflow.replace(match.group(0), f"{prefix}uses: {action}@{ref} # {comment}", 1)
+
+
+def assert_action_sha_pinned(workflow: str, action: str, *, minimum: tuple[int, ...]) -> None:
+    matches = [match for match in _ACTION_USE_RE.finditer(workflow) if match.group("action") == action]
+    assert matches, f"{action} must be referenced from the workflow"
+    for match in matches:
+        ref = match.group("ref")
+        comment = match.group("comment")
+        assert re.fullmatch(r"[0-9a-f]{40}", ref), (
+            f"{action} must be pinned to a 40-character lowercase commit SHA, got {ref!r}"
+        )
+        assert comment, f"{action} SHA pin must include a version comment such as '# v7'"
+        version = _version_tuple(comment)
+        assert _version_at_least(version, minimum), (
+            f"{action} version comment {comment!r} is below the minimum {minimum}"
+        )
 
 
 def test_release_workflow_has_publish_and_attestation_steps():
@@ -73,7 +116,7 @@ def test_release_workflow_has_publish_and_attestation_steps():
     assert "contents: write" in workflow
     assert "python scripts/check_release.py \\" in workflow
     assert '--expected-tag "$RELEASE_TAG" \\' in workflow
-    assert f"pypa/gh-action-pypi-publish@{PINNED_PYPI_PUBLISH_SHA} # release/v1" in workflow
+    assert_action_sha_pinned(workflow, "pypa/gh-action-pypi-publish", minimum=(1,))
 
 
 def test_dependabot_configuration_covers_python_and_actions():
@@ -92,13 +135,91 @@ def test_repository_automation_workflows_cover_dependency_review_and_triage():
     stale = Path(".github/workflows/stale.yml").read_text(encoding="utf-8")
 
     assert "actions/dependency-review-action@v4" in dependency_review
-    assert f"release-drafter/release-drafter@{PINNED_RELEASE_DRAFTER_SHA} # v7" in release_drafter
-    assert f"release-drafter/release-drafter/autolabeler@{PINNED_RELEASE_DRAFTER_SHA} # v7" in autolabeler
-    assert f"EndBug/label-sync@{PINNED_LABEL_SYNC_SHA} # v2" in label_sync
+    assert "continue-on-error: true" in dependency_review
+    assert "steps.review.outcome == 'failure'" in dependency_review
+    assert "dependency-graph/compare/" in dependency_review
+    assert "dependency-graph/dependency-review" in dependency_review
+    assert "Failing closed" in dependency_review
+    assert_action_sha_pinned(release_drafter, "release-drafter/release-drafter", minimum=(7,))
+    assert_action_sha_pinned(autolabeler, "release-drafter/release-drafter/autolabeler", minimum=(7,))
+    assert_action_sha_pinned(label_sync, "EndBug/label-sync", minimum=(2,))
     assert "actions/stale@v10" in stale
     assert "days-before-issue-stale: 45" in stale
     assert "days-before-pr-close: 14" in stale
     assert "repo-token: ${{ secrets.GITHUB_TOKEN }}" in stale
+
+
+def test_action_pin_contract_accepts_dependabot_sha_bumps_and_rejects_downgrades():
+    newer_sha = "b" * 40
+    release_drafter = Path(".github/workflows/release-drafter.yml").read_text(encoding="utf-8")
+    autolabeler = Path(".github/workflows/pr-autolabeler.yml").read_text(encoding="utf-8")
+    release = Path(".github/workflows/release.yml").read_text(encoding="utf-8")
+
+    assert_action_sha_pinned(
+        _rewrite_action_pin(
+            release_drafter,
+            "release-drafter/release-drafter",
+            ref=newer_sha,
+            comment="v7.10.0",
+        ),
+        "release-drafter/release-drafter",
+        minimum=(7,),
+    )
+    assert_action_sha_pinned(
+        _rewrite_action_pin(
+            autolabeler,
+            "release-drafter/release-drafter/autolabeler",
+            ref=newer_sha,
+            comment="v7",
+        ),
+        "release-drafter/release-drafter/autolabeler",
+        minimum=(7,),
+    )
+    assert_action_sha_pinned(
+        _rewrite_action_pin(
+            release,
+            "pypa/gh-action-pypi-publish",
+            ref=newer_sha,
+            comment="release/v1",
+        ),
+        "pypa/gh-action-pypi-publish",
+        minimum=(1,),
+    )
+
+    pinned = (
+        "jobs:\n"
+        "  draft:\n"
+        "    steps:\n"
+        "      - uses: release-drafter/release-drafter@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # v7\n"
+    )
+    floated = pinned.replace("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # v7", "v7")
+    with pytest.raises(AssertionError, match="40-character lowercase commit SHA"):
+        assert_action_sha_pinned(floated, "release-drafter/release-drafter", minimum=(7,))
+
+    short_sha = pinned.replace("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "aaaaaaaa")
+    with pytest.raises(AssertionError, match="40-character lowercase commit SHA"):
+        assert_action_sha_pinned(short_sha, "release-drafter/release-drafter", minimum=(7,))
+
+    downgraded = pinned.replace("# v7", "# v6")
+    with pytest.raises(AssertionError, match="below the minimum"):
+        assert_action_sha_pinned(downgraded, "release-drafter/release-drafter", minimum=(7,))
+
+    missing_comment = pinned.replace(" # v7", "")
+    with pytest.raises(AssertionError, match="version comment"):
+        assert_action_sha_pinned(missing_comment, "release-drafter/release-drafter", minimum=(7,))
+
+    with pytest.raises(AssertionError, match="must be referenced"):
+        assert_action_sha_pinned("jobs: {}\n", "release-drafter/release-drafter", minimum=(7,))
+
+    publish = (
+        "      - uses: pypa/gh-action-pypi-publish@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # release/v0\n"
+    )
+    with pytest.raises(AssertionError, match="below the minimum"):
+        assert_action_sha_pinned(publish, "pypa/gh-action-pypi-publish", minimum=(1,))
+
+    audit = "      - uses: pypa/gh-action-pip-audit@aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa # v1.0.9\n"
+    with pytest.raises(AssertionError, match="below the minimum"):
+        assert_action_sha_pinned(audit, "pypa/gh-action-pip-audit", minimum=(1, 1, 0))
 
 
 def test_security_workflows_cover_codeql_dependency_audit_and_sbom_export():
@@ -115,7 +236,7 @@ def test_security_workflows_cover_codeql_dependency_audit_and_sbom_export():
     assert "test_repos/**" in codeql_config
     assert "legacy/**" in codeql_config
 
-    assert f"pypa/gh-action-pip-audit@{PINNED_PIP_AUDIT_SHA} # v1.1.0" in security_audit
+    assert_action_sha_pinned(security_audit, "pypa/gh-action-pip-audit", minimum=(1, 1, 0))
     assert "python -m pip_audit -f cyclonedx-json" in security_audit
     assert "actions/upload-artifact@v4" in security_audit
     assert "name: callchain-sbom" in security_audit
@@ -297,7 +418,7 @@ def test_registry_smoke_workflows_cover_testpypi_rehearsal_and_post_release_chec
     assert "environment:" in rehearsal
     assert "name: testpypi" in rehearsal
     assert "id-token: write" in rehearsal
-    assert f"pypa/gh-action-pypi-publish@{PINNED_PYPI_PUBLISH_SHA} # release/v1" in rehearsal
+    assert_action_sha_pinned(rehearsal, "pypa/gh-action-pypi-publish", minimum=(1,))
     assert "repository-url: https://test.pypi.org/legacy/" in rehearsal
     assert "skip-existing: true" in rehearsal
     assert 'python scripts/install_smoke.py \\' in rehearsal
@@ -387,6 +508,10 @@ def test_corpus_baseline_compare_workflow_consumes_latest_official_artifact_and_
     assert "github.rest.pulls.listFiles" in workflow
     assert "build/corpus-changed-files.json" in workflow
     assert 'gh run list --workflow "Corpus Baseline"' in workflow
+    assert 'echo "No successful Corpus Baseline run found on branch ${{ steps.baseline-branch.outputs.name }}." >&2' in workflow
+    assert "This job fails closed on purpose." in workflow
+    assert 'error.code !== "ENOENT"' in workflow
+    assert "No compare report was produced." in workflow
     assert 'gh run download "$RUN_ID" --dir build/official-baseline --pattern "corpus-baseline-*"' in workflow
     assert "python scripts/check_corpus_sources.py" in workflow
     assert "python scripts/check_corpus.py --json --output build/corpus-current-snapshot.json" in workflow
