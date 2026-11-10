@@ -93,6 +93,7 @@ jobs:
           RUN_ID="$(gh run list --workflow "Corpus Baseline" --branch "${{ steps.baseline-branch.outputs.name }}" --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
           if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
             echo "No successful Corpus Baseline run found on branch ${{ steps.baseline-branch.outputs.name }}." >&2
+            echo "Summary drift cannot be enforced until Corpus Baseline succeeds on that branch. This job fails closed on purpose." >&2
             exit 1
           fi
           gh run download "$RUN_ID" --dir build/official-baseline --pattern "corpus-baseline-*"
@@ -163,7 +164,23 @@ jobs:
           script: |
             const fs = require("fs");
             const marker = "<!-- callchain-corpus-baseline-compare -->";
-            const body = fs.readFileSync("build/corpus-baseline-compare.md", "utf8");
+            let body;
+            try {
+              body = fs.readFileSync("build/corpus-baseline-compare.md", "utf8");
+            } catch (error) {
+              if (error.code !== "ENOENT") {
+                throw error;
+              }
+              body = [
+                "# Corpus Baseline Compare",
+                "",
+                "No compare report was produced.",
+                "",
+                "The compare job did not render build/corpus-baseline-compare.md.",
+                "A successful Corpus Baseline run on the base branch is required before summary drift can be enforced.",
+                "This comment is informational. A missing baseline still fails the job.",
+              ].join("\n");
+            }
             const commentBody = `${marker}
 
             > Baseline branch: \`${{ steps.baseline-branch.outputs.name }}\`  
