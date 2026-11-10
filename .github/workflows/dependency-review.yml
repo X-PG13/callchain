@@ -11,4 +11,43 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/dependency-review-action@v4
+
+      - name: Review dependency changes
+        id: review
+        uses: actions/dependency-review-action@v4
+        continue-on-error: true
+
+      # The action reports every HTTP 403 from the dependency-graph compare API as
+      # "Dependency review is not supported" (graph disabled). Vulnerability
+      # findings still come back as HTTP 200 plus a failed action, and those keep
+      # failing this job. Any other probe result fails closed.
+      - name: Fail closed unless dependency review is unavailable
+        if: steps.review.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set +e
+          body="$(gh api "repos/${GITHUB_REPOSITORY}/dependency-graph/compare/${BASE_SHA}...${HEAD_SHA}" 2>&1)"
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "::error::Dependency review failed while the dependency graph compare API succeeded. This is a real review failure, not a disabled dependency graph."
+            exit 1
+          fi
+          if printf '%s\n' "$body" | grep -Eq 'HTTP 403|"status":"403"' \
+            && printf '%s\n' "$body" | grep -Fq 'dependency-graph/dependency-review'; then
+            echo "::warning::Dependency review is not supported on this repository because the dependency graph is disabled. Enable Dependency graph under Settings → Code security. This job continues only for that refusal; a reachable graph still fails the job."
+            {
+              echo "## Dependency review skipped"
+              echo
+              echo "The dependency graph compare API refused this repository (HTTP 403)."
+              echo "Enable Dependency graph under Settings → Code security to enforce vulnerability review."
+              echo "This skip does not apply when that API succeeds."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          echo "::error::Dependency review failed and the dependency graph availability check was inconclusive. Failing closed."
+          printf '%s\n' "$body" >&2
+          exit 1
