@@ -49,7 +49,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0",
+    "pytest>=9.2.0",
     "pytest-cov",
     "black",
     # 0.16+ expands the default rule set and fails `ruff check` on this tree.
