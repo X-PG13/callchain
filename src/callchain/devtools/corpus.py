@@ -14,21 +14,21 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import zipfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from statistics import mean, median
 from time import perf_counter
-from typing import Any, Callable
+from typing import Any
 from urllib.error import URLError
 from urllib.parse import urlparse
 from urllib.request import urlopen
-import zipfile
 
 from callchain.core.analyzer import Analyzer
 from callchain.core.callgraph import CallGraphBuilder
 from callchain.core.chain_enum import ChainEnumerator
 from callchain.core.models import Language
-
 
 DEFAULT_MANIFEST = Path("test_repos/corpus.toml")
 DEFAULT_SOURCE_REGISTRY = Path("test_repos/sources.toml")
@@ -464,7 +464,7 @@ def load_manifest(path: Path) -> list[CorpusEntry]:
     entries: list[CorpusEntry] = []
     for project in projects:
         if not isinstance(project, dict):
-            raise ValueError("Each corpus project entry must be a TOML table.")
+            raise TypeError("Each corpus project entry must be a TOML table.")
         entries.append(_parse_entry(project))
     return entries
 
@@ -546,7 +546,7 @@ def load_source_registry(path: Path) -> list[CorpusSource]:
     registry: list[CorpusSource] = []
     for source in sources:
         if not isinstance(source, dict):
-            raise ValueError("Each corpus source entry must be a TOML table.")
+            raise TypeError("Each corpus source entry must be a TOML table.")
         registry.append(_parse_source_entry(source))
     return registry
 
@@ -1007,9 +1007,10 @@ def format_archive_verification(report: dict[str, Any]) -> str:
     lines = [
         f"Vendored corpus archive verified: {report['registry']}",
         f"Manifest: {report['manifest']}",
-        "  "
-        f"{report['name']}: ref={report['source_ref']}, sha256={report['downloaded_archive_sha256']}, "
-        f"bytes={report['archive_bytes']}",
+        (
+            f"  {report['name']}: ref={report['source_ref']}, "
+            f"sha256={report['downloaded_archive_sha256']}, bytes={report['archive_bytes']}"
+        ),
         f"  archive={report['archive_url']}",
     ]
     return "\n".join(lines)
@@ -1303,7 +1304,7 @@ def _normalize_changed_files(changed_files: list[str] | None) -> list[str]:
     seen: set[str] = set()
     for item in changed_files or []:
         if not isinstance(item, str):
-            raise ValueError("Changed-files entries must be strings.")
+            raise TypeError("Changed-files entries must be strings.")
         cleaned = item.strip()
         while cleaned.startswith("./"):
             cleaned = cleaned[2:]
@@ -1665,7 +1666,7 @@ def _parse_source_entry(data: dict[str, Any]) -> CorpusSource:
     content_sha256 = _parse_optional_string(data.get("content_sha256"), field_name="content_sha256")
     notes = data.get("notes", "")
     if not isinstance(notes, str):
-        raise ValueError("Corpus source entries 'notes' must be a string.")
+        raise TypeError("Corpus source entries 'notes' must be a string.")
 
     return CorpusSource(
         name=name,
@@ -1688,12 +1689,12 @@ def _parse_languages(value: Any) -> tuple[Language, ...]:
     if value is None:
         return ()
     if not isinstance(value, list):
-        raise ValueError("Corpus project 'languages' must be a list of strings.")
+        raise TypeError("Corpus project 'languages' must be a list of strings.")
 
     languages: list[Language] = []
     for item in value:
         if not isinstance(item, str):
-            raise ValueError("Corpus project 'languages' entries must be strings.")
+            raise TypeError("Corpus project 'languages' entries must be strings.")
         language = _LANGUAGE_ALIASES.get(item.lower())
         if language is None:
             raise ValueError(f"Unsupported corpus language {item!r}.")
@@ -1753,7 +1754,7 @@ def _load_report_json(path: Path) -> dict[str, Any]:
         raise ValueError(f"Corpus report file is not valid JSON: {path}") from exc
 
     if not isinstance(data, dict):
-        raise ValueError(f"Corpus report root must be a JSON object: {path}")
+        raise TypeError(f"Corpus report root must be a JSON object: {path}")
     return data
 
 
@@ -1952,7 +1953,7 @@ def _download_archive_bytes(location: str, *, timeout: float = 30.0) -> bytes:
             raise
         raise ValueError(f"Could not open archive location {location!r}: {exc}") from exc
     if not isinstance(payload, bytes):
-        raise ValueError(f"Archive location {location!r} did not produce binary content.")
+        raise TypeError(f"Archive location {location!r} did not produce binary content.")
     return payload
 
 
@@ -2091,7 +2092,7 @@ def _detect_git_source_ref(root_path: Path) -> str | None:
         packed_refs = git_dir / "packed-refs"
         if packed_refs.exists():
             for line in packed_refs.read_text(encoding="utf-8").splitlines():
-                if not line or line.startswith("#") or line.startswith("^"):
+                if not line or line.startswith(("#", "^")):
                     continue
                 value, _, name = line.partition(" ")
                 if name == ref_name:
@@ -2218,7 +2219,7 @@ def _normalize_report_cases(report: dict[str, Any], *, label: str) -> dict[str, 
     normalized: dict[str, dict[str, Any]] = {}
     for item in raw_cases:
         if not isinstance(item, dict):
-            raise ValueError(f"{label} report entries must be objects.")
+            raise TypeError(f"{label} report entries must be objects.")
         name = item.get("name")
         if not isinstance(name, str) or not name:
             raise ValueError(f"{label} report entries must contain a non-empty 'name'.")
@@ -2228,9 +2229,9 @@ def _normalize_report_cases(report: dict[str, Any], *, label: str) -> dict[str, 
         timings = item.get("timings")
         path = item.get("path")
         if not isinstance(summary, dict):
-            raise ValueError(f"{label} report case {name!r} is missing a summary object.")
+            raise TypeError(f"{label} report case {name!r} is missing a summary object.")
         if not isinstance(timings, dict):
-            raise ValueError(f"{label} report case {name!r} is missing a timings object.")
+            raise TypeError(f"{label} report case {name!r} is missing a timings object.")
         if not isinstance(path, str) or not path:
             raise ValueError(f"{label} report case {name!r} is missing a non-empty path.")
         normalized[name] = item
@@ -2243,7 +2244,7 @@ def _extract_metric_value(case: dict[str, Any], metric: str, *, label: str, case
     if isinstance(raw_value, dict):
         median_value = raw_value.get("median")
         if not isinstance(median_value, (int, float)):
-            raise ValueError(f"{label} report case {case_name!r} metric {metric!r} is missing median timing.")
+            raise TypeError(f"{label} report case {case_name!r} metric {metric!r} is missing median timing.")
         return float(median_value)
     if isinstance(raw_value, (int, float)):
         return float(raw_value)
@@ -2257,7 +2258,7 @@ def _compute_summary_delta(baseline: dict[str, Any], candidate: dict[str, Any]) 
         baseline_value = baseline.get(field_name, 0)
         candidate_value = candidate.get(field_name, 0)
         if not isinstance(baseline_value, int) or not isinstance(candidate_value, int):
-            raise ValueError(f"Corpus report summary field {field_name!r} must be an integer.")
+            raise TypeError(f"Corpus report summary field {field_name!r} must be an integer.")
         delta[field_name] = candidate_value - baseline_value
     return delta
 

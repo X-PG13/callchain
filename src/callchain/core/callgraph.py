@@ -6,6 +6,7 @@ import fnmatch
 from collections import defaultdict
 from pathlib import Path
 
+from callchain.core.cache import AnalysisCache
 from callchain.core.models import (
     AnalysisResult,
     CallEdge,
@@ -13,13 +14,12 @@ from callchain.core.models import (
     Language,
     ModuleInfo,
 )
-from callchain.core.cache import AnalysisCache
 from callchain.languages.base import LanguagePlugin, detect_languages, get_plugin
 
 
 class ParseError:
     """Record of a file that failed to parse."""
-    __slots__ = ("file_path", "phase", "error")
+    __slots__ = ("error", "file_path", "phase")
 
     def __init__(self, file_path: str, phase: str, error: str):
         self.file_path = file_path
@@ -265,9 +265,8 @@ def _matches_any(path: str, patterns: list[str]) -> bool:
         if fnmatch.fnmatch(path, pat):
             return True
         # Also match files under a directory prefix: "dir" matches "dir/foo.py"
-        if "/" not in pat and "*" not in pat and "?" not in pat:
-            if path.startswith(pat + "/") or path == pat:
-                return True
+        if "/" not in pat and "*" not in pat and "?" not in pat and (path.startswith(pat + "/") or path == pat):
+            return True
         # Match "dir/**" style
         if pat.endswith("/**") and path.startswith(pat[:-3] + "/"):
             return True

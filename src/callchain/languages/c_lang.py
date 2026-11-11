@@ -324,6 +324,4 @@ def _is_valid_c_callee(name: str) -> bool:
     if not name or "\n" in name or "{" in name:
         return False
     # Reject casts and complex expressions
-    if "(" in name or ")" in name or "*" in name:
-        return False
-    return True
+    return not ("(" in name or ")" in name or "*" in name)

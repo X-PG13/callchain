@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-import json
 import importlib.metadata
+import json
 import re
 from pathlib import Path
 
-from click.testing import CliRunner
 import pytest
+from click.testing import CliRunner
 
 from callchain import __version__
 from callchain.cli import main
@@ -40,7 +40,7 @@ def test_installed_metadata_version_matches_module_version():
         pytest.skip("installed callchain metadata does not point to a local checkout")
 
     installed_root = Path(url.removeprefix("file://")).resolve()
-    if installed_root != Path(".").resolve():
+    if installed_root != Path.cwd().resolve():
         pytest.skip("installed callchain distribution is not sourced from this repository checkout")
 
     if distribution.version != __version__:

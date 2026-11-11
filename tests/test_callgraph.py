@@ -1,8 +1,8 @@
 """Tests for call graph building and chain enumeration."""
 
+import shutil
 from collections import defaultdict
 from pathlib import Path
-import shutil
 
 import pytest
 

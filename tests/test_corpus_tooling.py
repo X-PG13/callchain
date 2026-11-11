@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from dataclasses import replace
 import io
 import json
 import runpy
@@ -10,8 +9,9 @@ import subprocess
 import sys
 import tarfile
 import warnings
-from pathlib import Path
 import zipfile
+from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
@@ -54,46 +54,46 @@ def test_load_manifest_parses_defaults_and_aliases(tmp_path):
 
 
 @pytest.mark.parametrize(
-    ("raw_toml", "message"),
+    ("raw_toml", "exc_type", "message"),
     [
-        ('version = 2\n[[projects]]\npath = "repo"\n', "Unsupported corpus manifest version"),
-        ("", "must define at least one"),
-        ("projects = []\n", "must define at least one"),
-        ('projects = ["repo"]\n', "must be a TOML table"),
-        ('[[projects]]\nname = ""\npath = "repo"\n', "non-empty string 'name'"),
-        ('[[projects]]\nname = "sample"\n', "non-empty string 'path'"),
-        ('[[projects]]\npath = "repo"\nlanguages = "python"\n', "must be a list of strings"),
-        ('[[projects]]\npath = "repo"\nlanguages = [1]\n', "entries must be strings"),
-        ('[[projects]]\npath = "repo"\nlanguages = ["elixir"]\n', "Unsupported corpus language"),
-        ('[[projects]]\npath = "repo"\nexclude = [1]\n', "exclude"),
-        ('[[projects]]\npath = "repo"\nrestrict_dir = 1\n', "restrict_dir"),
+        ('version = 2\n[[projects]]\npath = "repo"\n', ValueError, "Unsupported corpus manifest version"),
+        ("", ValueError, "must define at least one"),
+        ("projects = []\n", ValueError, "must define at least one"),
+        ('projects = ["repo"]\n', TypeError, "must be a TOML table"),
+        ('[[projects]]\nname = ""\npath = "repo"\n', ValueError, "non-empty string 'name'"),
+        ('[[projects]]\nname = "sample"\n', ValueError, "non-empty string 'path'"),
+        ('[[projects]]\npath = "repo"\nlanguages = "python"\n', TypeError, "must be a list of strings"),
+        ('[[projects]]\npath = "repo"\nlanguages = [1]\n', TypeError, "entries must be strings"),
+        ('[[projects]]\npath = "repo"\nlanguages = ["elixir"]\n', ValueError, "Unsupported corpus language"),
+        ('[[projects]]\npath = "repo"\nexclude = [1]\n', ValueError, "exclude"),
+        ('[[projects]]\npath = "repo"\nrestrict_dir = 1\n', ValueError, "restrict_dir"),
     ],
 )
-def test_load_manifest_rejects_invalid_shapes(tmp_path, raw_toml, message):
+def test_load_manifest_rejects_invalid_shapes(tmp_path, raw_toml, exc_type, message):
     manifest = tmp_path / "corpus.toml"
     manifest.write_text(raw_toml, encoding="utf-8")
 
-    with pytest.raises(ValueError, match=message):
+    with pytest.raises(exc_type, match=message):
         corpus.load_manifest(manifest)
 
 
 @pytest.mark.parametrize(
-    ("raw_toml", "message"),
+    ("raw_toml", "exc_type", "message"),
     [
-        ('version = 2\n[[sources]]\nname = "sample"\nkind = "local"\nanalyzed_path = "repo"\nroot_path = "repo"\nlicense_spdx = "Apache-2.0"\nlicense_file = "LICENSE"\n', "Unsupported source registry version"),
-        ("", "must define at least one"),
-        ("sources = []\n", "must define at least one"),
-        ('sources = ["repo"]\n', "must be a TOML table"),
-        ('[[sources]]\nname = ""\nkind = "local"\nanalyzed_path = "repo"\nroot_path = "repo"\nlicense_spdx = "Apache-2.0"\nlicense_file = "LICENSE"\n', "non-empty string 'name'"),
-        ('[[sources]]\nname = "sample"\nkind = "odd"\nanalyzed_path = "repo"\nroot_path = "repo"\nlicense_spdx = "Apache-2.0"\nlicense_file = "LICENSE"\n', "supported kind"),
-        ('[[sources]]\nname = "sample"\nkind = "local"\nanalyzed_path = "repo"\nroot_path = "repo"\nlicense_spdx = "Apache-2.0"\nlicense_file = "LICENSE"\nnotes = 1\n', "notes"),
+        ('version = 2\n[[sources]]\nname = "sample"\nkind = "local"\nanalyzed_path = "repo"\nroot_path = "repo"\nlicense_spdx = "Apache-2.0"\nlicense_file = "LICENSE"\n', ValueError, "Unsupported source registry version"),
+        ("", ValueError, "must define at least one"),
+        ("sources = []\n", ValueError, "must define at least one"),
+        ('sources = ["repo"]\n', TypeError, "must be a TOML table"),
+        ('[[sources]]\nname = ""\nkind = "local"\nanalyzed_path = "repo"\nroot_path = "repo"\nlicense_spdx = "Apache-2.0"\nlicense_file = "LICENSE"\n', ValueError, "non-empty string 'name'"),
+        ('[[sources]]\nname = "sample"\nkind = "odd"\nanalyzed_path = "repo"\nroot_path = "repo"\nlicense_spdx = "Apache-2.0"\nlicense_file = "LICENSE"\n', ValueError, "supported kind"),
+        ('[[sources]]\nname = "sample"\nkind = "local"\nanalyzed_path = "repo"\nroot_path = "repo"\nlicense_spdx = "Apache-2.0"\nlicense_file = "LICENSE"\nnotes = 1\n', TypeError, "notes"),
     ],
 )
-def test_load_source_registry_rejects_invalid_shapes(tmp_path, raw_toml, message):
+def test_load_source_registry_rejects_invalid_shapes(tmp_path, raw_toml, exc_type, message):
     registry = tmp_path / "sources.toml"
     registry.write_text(raw_toml, encoding="utf-8")
 
-    with pytest.raises(ValueError, match=message):
+    with pytest.raises(exc_type, match=message):
         corpus.load_source_registry(registry)
 
 
@@ -980,7 +980,7 @@ def test_download_archive_sha256_supports_local_paths_and_wraps_errors(tmp_path)
     monkeypatch = pytest.MonkeyPatch()
     monkeypatch.setattr(corpus, "_open_archive_handle", lambda location, timeout=30.0: _TextHandle())
     try:
-        with pytest.raises(ValueError, match="did not produce binary content"):
+        with pytest.raises(TypeError, match="did not produce binary content"):
             corpus._download_archive_bytes("dummy://archive")
     finally:
         monkeypatch.undo()
@@ -1435,16 +1435,11 @@ def test_compare_reports_add_review_hint_overlap_for_changed_files(tmp_path):
         encoding="utf-8",
     )
     codeowners.write_text(
-        "\n".join(
-            [
-                "# Example CODEOWNERS",
-                "src/callchain/core/* @callchain-core",
-                "src/callchain/core/callgraph.py @callchain-graph",
-                "src/callchain/languages/*.py @callchain-languages",
-                ".github/workflows/* @callchain-infra",
-            ]
-        )
-        + "\n",
+        "# Example CODEOWNERS\n"
+        "src/callchain/core/* @callchain-core\n"
+        "src/callchain/core/callgraph.py @callchain-graph\n"
+        "src/callchain/languages/*.py @callchain-languages\n"
+        ".github/workflows/* @callchain-infra\n",
         encoding="utf-8",
     )
 
@@ -1687,7 +1682,7 @@ def test_compare_changed_files_loader_supports_json_object_and_text(tmp_path):
     assert corpus._load_changed_files(list_path) == ["src/callchain/core/callgraph.py"]
     assert corpus._load_changed_files(json_path) == ["src/callchain/core/callgraph.py", "README.md"]
     assert corpus._load_changed_files(text_path) == ["src/callchain/core/chain_enum.py"]
-    with pytest.raises(ValueError, match="Changed-files entries must be strings"):
+    with pytest.raises(TypeError, match="Changed-files entries must be strings"):
         corpus._load_changed_files(bad_path)
     with pytest.raises(ValueError, match="must be a JSON list"):
         corpus._load_changed_files(wrong_root_path)
@@ -1789,7 +1784,7 @@ def test_compare_reports_rejects_invalid_inputs_and_regressions(tmp_path):
         corpus.compare_reports(missing, candidate)
     with pytest.raises(ValueError, match="not valid JSON"):
         corpus.compare_reports(invalid, candidate)
-    with pytest.raises(ValueError, match="JSON object"):
+    with pytest.raises(TypeError, match="JSON object"):
         corpus.compare_reports(wrong_root, candidate)
     with pytest.raises(ValueError, match="case mismatch"):
         corpus.compare_reports(baseline, mismatch)
@@ -1802,14 +1797,9 @@ def test_compare_internal_helpers_cover_defensive_paths(tmp_path):
     empty.write_text(json.dumps({}), encoding="utf-8")
     codeowners = tmp_path / "CODEOWNERS"
     codeowners.write_text(
-        "\n".join(
-            [
-                "# comment",
-                "src/callchain/core/* @callchain-core",
-                "src/callchain/core/callgraph.py @callchain-graph",
-            ]
-        )
-        + "\n",
+        "# comment\n"
+        "src/callchain/core/* @callchain-core\n"
+        "src/callchain/core/callgraph.py @callchain-graph\n",
         encoding="utf-8",
     )
     bad_codeowners = tmp_path / "BAD_CODEOWNERS"
@@ -1823,23 +1813,23 @@ def test_compare_internal_helpers_cover_defensive_paths(tmp_path):
 
     with pytest.raises(ValueError, match="non-empty 'cases' or 'projects'"):
         corpus._normalize_report_cases({}, label="baseline")
-    with pytest.raises(ValueError, match="entries must be objects"):
+    with pytest.raises(TypeError, match="entries must be objects"):
         corpus._normalize_report_cases({"cases": [1]}, label="baseline")
     with pytest.raises(ValueError, match="non-empty 'name'"):
         corpus._normalize_report_cases({"cases": [{"name": "", "path": "a", "summary": {}, "timings": {}}]}, label="baseline")
     with pytest.raises(ValueError, match="duplicate case name"):
         corpus._normalize_report_cases(duplicate, label="baseline")
-    with pytest.raises(ValueError, match="missing a summary object"):
+    with pytest.raises(TypeError, match="missing a summary object"):
         corpus._normalize_report_cases({"cases": [{"name": "a", "path": "a", "timings": {}}]}, label="baseline")
-    with pytest.raises(ValueError, match="missing a timings object"):
+    with pytest.raises(TypeError, match="missing a timings object"):
         corpus._normalize_report_cases({"cases": [{"name": "a", "path": "a", "summary": {}}]}, label="baseline")
     with pytest.raises(ValueError, match="missing a non-empty path"):
         corpus._normalize_report_cases({"cases": [{"name": "a", "path": "", "summary": {}, "timings": {}}]}, label="baseline")
-    with pytest.raises(ValueError, match="missing median timing"):
+    with pytest.raises(TypeError, match="missing median timing"):
         corpus._extract_metric_value({"timings": {"total_seconds": {}}}, "total_seconds", label="baseline", case_name="a")
     with pytest.raises(ValueError, match="missing numeric metric"):
         corpus._extract_metric_value({"timings": {}}, "total_seconds", label="baseline", case_name="a")
-    with pytest.raises(ValueError, match="must be an integer"):
+    with pytest.raises(TypeError, match="must be an integer"):
         corpus._compute_summary_delta({"files": "two"}, {"files": 2})
     assert corpus._summary_has_drift({"files": 1, "functions": 0}) is True
     assert corpus._summary_has_drift({"files": 0, "functions": 0}) is False

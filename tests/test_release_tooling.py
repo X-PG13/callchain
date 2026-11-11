@@ -7,9 +7,9 @@ import json
 import runpy
 import subprocess
 import sys
-from typing import Any
 import warnings
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -1107,25 +1107,25 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
         release.load_compare_report_summary(bad_json)
     wrong_root = tmp_path / "wrong-root.json"
     wrong_root.write_text("[]", encoding="utf-8")
-    with pytest.raises(ValueError, match="JSON object"):
+    with pytest.raises(TypeError, match="JSON object"):
         release.load_corpus_baseline_state(wrong_root)
-    with pytest.raises(ValueError, match="JSON object"):
+    with pytest.raises(TypeError, match="JSON object"):
         release.load_compare_report_summary(wrong_root)
     bad_compare = tmp_path / "bad-compare.json"
     bad_compare.write_text(json.dumps({"metric": "", "has_summary_drift": True, "summary_drift_cases": [], "comparisons": []}), encoding="utf-8")
     with pytest.raises(ValueError, match="metric must be a non-empty string"):
         release.load_compare_report_summary(bad_compare)
     bad_compare.write_text(json.dumps({"metric": "summary", "has_summary_drift": "yes", "summary_drift_cases": [], "comparisons": []}), encoding="utf-8")
-    with pytest.raises(ValueError, match="has_summary_drift must be a boolean"):
+    with pytest.raises(TypeError, match="has_summary_drift must be a boolean"):
         release.load_compare_report_summary(bad_compare)
     bad_compare.write_text(json.dumps({"metric": "summary", "has_summary_drift": True, "summary_drift_cases": [""], "comparisons": []}), encoding="utf-8")
     with pytest.raises(ValueError, match="summary_drift_cases must be a list of non-empty strings"):
         release.load_compare_report_summary(bad_compare)
     bad_compare.write_text(json.dumps({"metric": "summary", "has_summary_drift": True, "summary_drift_cases": [], "comparisons": {}}), encoding="utf-8")
-    with pytest.raises(ValueError, match="comparisons must be a list"):
+    with pytest.raises(TypeError, match="comparisons must be a list"):
         release.load_compare_report_summary(bad_compare)
     bad_compare.write_text(json.dumps({"metric": "summary", "has_summary_drift": True, "summary_drift_cases": [], "comparisons": [1]}), encoding="utf-8")
-    with pytest.raises(ValueError, match="comparisons must contain JSON objects"):
+    with pytest.raises(TypeError, match="comparisons must contain JSON objects"):
         release.load_compare_report_summary(bad_compare)
     bad_compare.write_text(json.dumps({"metric": "summary", "has_summary_drift": True, "summary_drift_cases": [], "comparisons": [{}]}), encoding="utf-8")
     with pytest.raises(ValueError, match="comparison names must be non-empty strings"):
@@ -1142,7 +1142,7 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
         ),
         encoding="utf-8",
     )
-    with pytest.raises(ValueError, match="has_changed_files_context must be a boolean"):
+    with pytest.raises(TypeError, match="has_changed_files_context must be a boolean"):
         release.load_compare_report_summary(bad_compare)
     bad_compare.write_text(
         json.dumps(
@@ -1169,7 +1169,7 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
         ),
         encoding="utf-8",
     )
-    with pytest.raises(ValueError, match="summary_delta entries must be objects"):
+    with pytest.raises(TypeError, match="summary_delta entries must be objects"):
         release.load_compare_report_summary(bad_compare)
     bad_compare.write_text(
         json.dumps(
@@ -1230,15 +1230,15 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
         release._normalize_compare_markdown_excerpt(None)
     with pytest.raises(ValueError, match="missing compare_focus_excerpt metadata"):
         release._normalize_compare_focus_excerpt(None)
-    with pytest.raises(ValueError, match="compare_report entry must be an object"):
+    with pytest.raises(TypeError, match="compare_report entry must be an object"):
         release._normalize_compare_report_summary(1)
     with pytest.raises(ValueError, match="compare_report.metric must be a non-empty string"):
         release._normalize_compare_report_summary({"metric": "", "has_summary_drift": False, "summary_drift_cases": [], "drift_details": [], "comparison_count": 0, "category_summary": {"parser": {"count": 0, "cases": []}, "resolver": {"count": 0, "cases": []}, "parse_health": {"count": 0, "cases": []}, "non_structural": {"count": 0, "cases": []}}})
-    with pytest.raises(ValueError, match="compare_report.has_summary_drift must be a boolean"):
+    with pytest.raises(TypeError, match="compare_report.has_summary_drift must be a boolean"):
         release._normalize_compare_report_summary({"metric": "summary", "has_summary_drift": "no", "summary_drift_cases": [], "drift_details": [], "comparison_count": 0, "category_summary": {"parser": {"count": 0, "cases": []}, "resolver": {"count": 0, "cases": []}, "parse_health": {"count": 0, "cases": []}, "non_structural": {"count": 0, "cases": []}}})
-    with pytest.raises(ValueError, match="compare_report.has_changed_files_context must be a boolean"):
+    with pytest.raises(TypeError, match="compare_report.has_changed_files_context must be a boolean"):
         release._normalize_compare_report_summary({"metric": "summary", "has_summary_drift": False, "has_changed_files_context": "no", "summary_drift_cases": [], "drift_details": [], "comparison_count": 0, "category_summary": {"parser": {"count": 0, "cases": []}, "resolver": {"count": 0, "cases": []}, "parse_health": {"count": 0, "cases": []}, "non_structural": {"count": 0, "cases": []}}})
-    with pytest.raises(ValueError, match="compare_report.comparison_count must be an integer"):
+    with pytest.raises(TypeError, match="compare_report.comparison_count must be an integer"):
         release._normalize_compare_report_summary({"metric": "summary", "has_summary_drift": False, "summary_drift_cases": [], "drift_details": [], "comparison_count": "0", "category_summary": {"parser": {"count": 0, "cases": []}, "resolver": {"count": 0, "cases": []}, "parse_health": {"count": 0, "cases": []}, "non_structural": {"count": 0, "cases": []}}})
     with pytest.raises(ValueError, match="compare_report.summary_drift_cases must be a list of non-empty strings"):
         release._normalize_compare_report_summary({"metric": "summary", "has_summary_drift": False, "summary_drift_cases": [""], "drift_details": [], "comparison_count": 0, "category_summary": {"parser": {"count": 0, "cases": []}, "resolver": {"count": 0, "cases": []}, "parse_health": {"count": 0, "cases": []}, "non_structural": {"count": 0, "cases": []}}})
@@ -1246,7 +1246,7 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
         release._normalize_compare_report_summary({"metric": "summary", "has_summary_drift": False, "summary_drift_cases": [], "changed_files": [""], "drift_details": [], "comparison_count": 0, "category_summary": {"parser": {"count": 0, "cases": []}, "resolver": {"count": 0, "cases": []}, "parse_health": {"count": 0, "cases": []}, "non_structural": {"count": 0, "cases": []}}})
     with pytest.raises(ValueError, match="compare_report.drift_details must be a list of non-empty strings"):
         release._normalize_compare_report_summary({"metric": "summary", "has_summary_drift": False, "summary_drift_cases": [], "drift_details": [""], "comparison_count": 0, "category_summary": {"parser": {"count": 0, "cases": []}, "resolver": {"count": 0, "cases": []}, "parse_health": {"count": 0, "cases": []}, "non_structural": {"count": 0, "cases": []}}})
-    with pytest.raises(ValueError, match="compare_report.category_summary must be an object"):
+    with pytest.raises(TypeError, match="compare_report.category_summary must be an object"):
         release._normalize_compare_report_summary(
             {
                 "metric": "summary",
@@ -1257,7 +1257,7 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
                 "category_summary": [],
             }
         )
-    with pytest.raises(ValueError, match="compare_report.category_summary.parser.count must be an integer"):
+    with pytest.raises(TypeError, match="compare_report.category_summary.parser.count must be an integer"):
         release._normalize_compare_category_summary(
             {
                 "parser": {"count": "1", "cases": ["sample"]},
@@ -1275,7 +1275,7 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
                 "non_structural": {"count": 0, "cases": []},
             }
         )
-    with pytest.raises(ValueError, match="compare_report.category_summary.parser must be an object"):
+    with pytest.raises(TypeError, match="compare_report.category_summary.parser must be an object"):
         release._normalize_compare_category_summary(
             {
                 "parser": None,
@@ -1293,9 +1293,9 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
                 "non_structural": {"count": 0, "cases": []},
             }
         )
-    with pytest.raises(ValueError, match="compare_report.attribution_summary must be an object"):
+    with pytest.raises(TypeError, match="compare_report.attribution_summary must be an object"):
         release._normalize_compare_attribution_summary([])
-    with pytest.raises(ValueError, match="compare_report.attribution_summary.discovery.count must be an integer"):
+    with pytest.raises(TypeError, match="compare_report.attribution_summary.discovery.count must be an integer"):
         release._normalize_compare_attribution_summary(
             {
                 "discovery": {"count": "1", "cases": ["sample"]},
@@ -1317,7 +1317,7 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
                 "non_structural": {"count": 0, "cases": []},
             }
         )
-    with pytest.raises(ValueError, match="compare_report.attribution_summary.discovery must be an object"):
+    with pytest.raises(TypeError, match="compare_report.attribution_summary.discovery must be an object"):
         release._normalize_compare_attribution_summary(
             {
                 "discovery": None,
@@ -1339,9 +1339,9 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
                 "non_structural": {"count": 0, "cases": []},
             }
         )
-    with pytest.raises(ValueError, match="compare_report.owner_hints must be a list of objects"):
+    with pytest.raises(TypeError, match="compare_report.owner_hints must be a list of objects"):
         release._normalize_compare_owner_hints({}, label="compare_report.owner_hints")
-    with pytest.raises(ValueError, match="compare_report.owner_hints must be a list of objects"):
+    with pytest.raises(TypeError, match="compare_report.owner_hints must be a list of objects"):
         release._normalize_compare_owner_hints([1], label="compare_report.owner_hints")
     with pytest.raises(ValueError, match="compare_report.owner_hints keys must be non-empty strings"):
         release._normalize_compare_owner_hints(
@@ -1408,9 +1408,9 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
             ],
             label="compare_report.owner_hints",
         )
-    with pytest.raises(ValueError, match="compare_report.owner_focus must be a list of objects"):
+    with pytest.raises(TypeError, match="compare_report.owner_focus must be a list of objects"):
         release._normalize_compare_owner_focus({}, label="compare_report.owner_focus")
-    with pytest.raises(ValueError, match="compare_report.owner_focus must be a list of objects"):
+    with pytest.raises(TypeError, match="compare_report.owner_focus must be a list of objects"):
         release._normalize_compare_owner_focus([1], label="compare_report.owner_focus")
     with pytest.raises(ValueError, match="compare_report.owner_focus owners must be non-empty strings"):
         release._normalize_compare_owner_focus(
@@ -1468,7 +1468,7 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
             ],
             label="compare_report.owner_focus",
         )
-    with pytest.raises(ValueError, match="compare_report.owner_focus score values must be integers"):
+    with pytest.raises(TypeError, match="compare_report.owner_focus score values must be integers"):
         release._normalize_compare_owner_focus(
             [
                 {
@@ -1482,9 +1482,9 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
             ],
             label="compare_report.owner_focus",
         )
-    with pytest.raises(ValueError, match="compare_report.reviewer_candidates must be a list of objects"):
+    with pytest.raises(TypeError, match="compare_report.reviewer_candidates must be a list of objects"):
         release._normalize_compare_reviewer_candidates({}, label="compare_report.reviewer_candidates")
-    with pytest.raises(ValueError, match="compare_report.reviewer_candidates must be a list of objects"):
+    with pytest.raises(TypeError, match="compare_report.reviewer_candidates must be a list of objects"):
         release._normalize_compare_reviewer_candidates([1], label="compare_report.reviewer_candidates")
     with pytest.raises(ValueError, match="compare_report.reviewer_candidates owners must be non-empty strings"):
         release._normalize_compare_reviewer_candidates(
@@ -1531,7 +1531,7 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
             ],
             label="compare_report.reviewer_candidates",
         )
-    with pytest.raises(ValueError, match="compare_report.reviewer_candidates score values must be integers"):
+    with pytest.raises(TypeError, match="compare_report.reviewer_candidates score values must be integers"):
         release._normalize_compare_reviewer_candidates(
             [
                 {
@@ -1576,7 +1576,7 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
             ],
             label="compare_report.reviewer_candidates",
         )
-    with pytest.raises(ValueError, match="compare_report.review_request_plan must be an object"):
+    with pytest.raises(TypeError, match="compare_report.review_request_plan must be an object"):
         release._normalize_compare_review_request_plan([], label="compare_report.review_request_plan")
     with pytest.raises(ValueError, match="compare_report.review_request_plan.users must be a list of non-empty strings"):
         release._normalize_compare_review_request_plan(
@@ -1593,17 +1593,17 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
             {"users": [], "teams": [], "unsupported": [""]},
             label="compare_report.review_request_plan",
         )
-    with pytest.raises(ValueError, match="compare_focus_excerpt entry must be an object"):
+    with pytest.raises(TypeError, match="compare_focus_excerpt entry must be an object"):
         release._normalize_compare_focus_excerpt(1)
     with pytest.raises(ValueError, match="compare_focus_excerpt.content must be a non-empty string"):
         release._normalize_compare_focus_excerpt(
             {"content": "", "highlight_count": 0, "total_count": 0, "truncated": False, "source": "compare_report"}
         )
-    with pytest.raises(ValueError, match="compare_focus_excerpt.highlight_count must be an integer"):
+    with pytest.raises(TypeError, match="compare_focus_excerpt.highlight_count must be an integer"):
         release._normalize_compare_focus_excerpt(
             {"content": "x", "highlight_count": "0", "total_count": 0, "truncated": False, "source": "compare_report"}
         )
-    with pytest.raises(ValueError, match="compare_focus_excerpt.total_count must be an integer"):
+    with pytest.raises(TypeError, match="compare_focus_excerpt.total_count must be an integer"):
         release._normalize_compare_focus_excerpt(
             {"content": "x", "highlight_count": 0, "total_count": "0", "truncated": False, "source": "compare_report"}
         )
@@ -1611,7 +1611,7 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
         release._normalize_compare_focus_excerpt(
             {"content": "x", "highlight_count": 2, "total_count": 1, "truncated": False, "source": "compare_report"}
         )
-    with pytest.raises(ValueError, match="compare_focus_excerpt.truncated must be a boolean"):
+    with pytest.raises(TypeError, match="compare_focus_excerpt.truncated must be a boolean"):
         release._normalize_compare_focus_excerpt(
             {"content": "x", "highlight_count": 0, "total_count": 0, "truncated": "no", "source": "compare_report"}
         )
@@ -1619,13 +1619,13 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
         release._normalize_compare_focus_excerpt(
             {"content": "x", "highlight_count": 0, "total_count": 0, "truncated": False, "source": ""}
         )
-    with pytest.raises(ValueError, match="compare_markdown_excerpt entry must be an object"):
+    with pytest.raises(TypeError, match="compare_markdown_excerpt entry must be an object"):
         release._normalize_compare_markdown_excerpt(1)
     with pytest.raises(ValueError, match="compare_markdown_excerpt.content must be a non-empty string"):
         release._normalize_compare_markdown_excerpt({"content": "", "truncated": False, "table_row_count": 0})
-    with pytest.raises(ValueError, match="compare_markdown_excerpt.truncated must be a boolean"):
+    with pytest.raises(TypeError, match="compare_markdown_excerpt.truncated must be a boolean"):
         release._normalize_compare_markdown_excerpt({"content": "x", "truncated": "no", "table_row_count": 0})
-    with pytest.raises(ValueError, match="compare_markdown_excerpt.table_row_count must be an integer"):
+    with pytest.raises(TypeError, match="compare_markdown_excerpt.table_row_count must be an integer"):
         release._normalize_compare_markdown_excerpt({"content": "x", "truncated": False, "table_row_count": "0"})
     assert release._format_corpus_run_line(None) == "none"
     assert release._format_corpus_run_markdown(None) == "`none`"
@@ -2313,7 +2313,7 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
     assert release._changed_file_weight("src/callchain/languages/base.py") == 6
     assert release._changed_file_weight("src/callchain/devtools/corpus.py") == 3
     assert release._changed_file_weight(".github/workflows/corpus-baseline-compare.yml") == 2
-    with pytest.raises(ValueError, match="changed_files must be a list of non-empty strings"):
+    with pytest.raises(TypeError, match="changed_files must be a list of non-empty strings"):
         release._normalize_compare_changed_files({}, label="Corpus compare report")
     with pytest.raises(ValueError, match="changed_files must be a list of non-empty strings"):
         release._normalize_compare_changed_files([""], label="Corpus compare report")
@@ -2323,15 +2323,15 @@ def test_release_internal_helpers_cover_edge_cases(tmp_path):
     ]
     with pytest.raises(ValueError, match="summary_delta keys must be non-empty strings"):
         release._format_local_summary_delta({"": 1})
-    with pytest.raises(ValueError, match="summary_delta values must be integers"):
+    with pytest.raises(TypeError, match="summary_delta values must be integers"):
         release._format_local_summary_delta({"functions": "1"})
     assert release._short_sha("1234567890abcdef") == "1234567"
 
     with pytest.raises(ValueError, match="missing baseline metadata"):
         release.validate_corpus_baseline_state({})
-    with pytest.raises(ValueError, match="baseline entry must be an object"):
+    with pytest.raises(TypeError, match="baseline entry must be an object"):
         release.validate_corpus_baseline_state({"baseline": 1})
-    with pytest.raises(ValueError, match="baseline.run_id"):
+    with pytest.raises(TypeError, match="baseline.run_id"):
         release.validate_corpus_baseline_state({"baseline": {"run_id": "x", "created_at": "2026-04-07T00:00:00Z"}})
     with pytest.raises(ValueError, match="baseline.created_at must be a non-empty string"):
         release.validate_corpus_baseline_state({"baseline": {"run_id": 1, "created_at": ""}})

@@ -313,7 +313,7 @@ def test_report_validation_and_command_failures(tmp_path):
 
     wrong_root = tmp_path / "wrong-root.json"
     wrong_root.write_text(json.dumps([]), encoding="utf-8")
-    with pytest.raises(ValueError, match="must be a JSON object"):
+    with pytest.raises(TypeError, match="must be a JSON object"):
         install_smoke._load_smoke_analysis_report(wrong_root)
 
     no_languages = tmp_path / "no-languages.json"
@@ -358,7 +358,7 @@ def test_report_validation_and_command_failures(tmp_path):
 
     bad_summary = tmp_path / "bad-summary.json"
     bad_summary.write_text(json.dumps({"languages": ["python"], "summary": [], "parse_errors": []}), encoding="utf-8")
-    with pytest.raises(ValueError, match="summary must be an object"):
+    with pytest.raises(TypeError, match="summary must be an object"):
         install_smoke._load_smoke_analysis_report(bad_summary)
 
     low_counts = tmp_path / "low-counts.json"
@@ -398,7 +398,7 @@ def test_report_validation_and_command_failures(tmp_path):
         ),
         encoding="utf-8",
     )
-    with pytest.raises(ValueError, match="summary.total_functions must be an integer"):
+    with pytest.raises(TypeError, match="summary.total_functions must be an integer"):
         install_smoke._load_smoke_analysis_report(missing_integer)
 
     bad_classes = tmp_path / "bad-classes.json"
@@ -418,7 +418,7 @@ def test_report_validation_and_command_failures(tmp_path):
         ),
         encoding="utf-8",
     )
-    with pytest.raises(ValueError, match="summary.total_classes must be an integer"):
+    with pytest.raises(TypeError, match="summary.total_classes must be an integer"):
         install_smoke._load_smoke_analysis_report(bad_classes)
 
     non_list_errors = tmp_path / "non-list-errors.json"
@@ -438,7 +438,7 @@ def test_report_validation_and_command_failures(tmp_path):
         ),
         encoding="utf-8",
     )
-    with pytest.raises(ValueError, match="parse_errors must be a list"):
+    with pytest.raises(TypeError, match="parse_errors must be a list"):
         install_smoke._load_smoke_analysis_report(non_list_errors)
 
     bad_errors = tmp_path / "bad-errors.json"

@@ -14,7 +14,7 @@ from pathlib import Path
 from click.testing import CliRunner
 from rich.console import Console
 
-import callchain.cli as cli
+from callchain import cli
 from callchain.cli import main
 from callchain.core.models import AnalysisResult, CouplingMetrics, FunctionInfo, ImportInfo, Language
 

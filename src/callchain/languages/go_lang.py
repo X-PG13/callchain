@@ -29,8 +29,7 @@ def _get_parser() -> tree_sitter.Parser:
 
 def _module_from_path(rel_path: str) -> str:
     s = rel_path.replace("/", ".").replace("\\", ".")
-    if s.endswith(".go"):
-        s = s[:-3]
+    s = s.removesuffix(".go")
     return s
 
 

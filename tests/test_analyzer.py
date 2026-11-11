@@ -2,7 +2,15 @@
 
 from callchain.core.analyzer import Analyzer, _classify, _is_likely_entrypoint, _normalize_cycle
 from callchain.core.callgraph import CallGraphBuilder
-from callchain.core.models import AnalysisResult, ClassInfo, FunctionInfo, ImportInfo, Language, ModuleInfo, VariableInfo
+from callchain.core.models import (
+    AnalysisResult,
+    ClassInfo,
+    FunctionInfo,
+    ImportInfo,
+    Language,
+    ModuleInfo,
+    VariableInfo,
+)
 
 
 def test_full_analysis(python_fixtures):
@@ -30,7 +38,7 @@ def test_module_coupling(python_fixtures):
     result = builder.build(languages=[Language.PYTHON])
     analyzer = Analyzer(result)
     coupling = analyzer.compute_module_coupling()
-    for mod, metrics in coupling.items():
+    for metrics in coupling.values():
         assert 0.0 <= metrics.instability <= 1.0
 
 
