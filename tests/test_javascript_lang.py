@@ -7,8 +7,8 @@ import pytest
 from callchain.languages.javascript_lang import (
     JavaScriptPlugin,
     TypeScriptPlugin,
-    _JSPluginBase,
     _get_js_parser,
+    _JSPluginBase,
     _module_from_path,
 )
 

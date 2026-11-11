@@ -438,9 +438,7 @@ class _JSPluginBase(LanguagePlugin):
         func = node.child_by_field_name("function")
         if not func:
             return None
-        if func.type == "identifier":
-            return self._node_text(func, source)
-        elif func.type == "member_expression":
+        if func.type == "identifier" or func.type == "member_expression":
             return self._node_text(func, source)
         return None
 

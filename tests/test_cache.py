@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import shutil
 
-from callchain.core.cache import AnalysisCache, CACHE_DIR
+from callchain.core.cache import CACHE_DIR, AnalysisCache
 from callchain.core.callgraph import CallGraphBuilder
 from callchain.core.models import CallEdge, ClassInfo, FunctionInfo, ImportInfo, Language, ModuleInfo, VariableInfo
 

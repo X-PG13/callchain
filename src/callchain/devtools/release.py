@@ -214,7 +214,7 @@ def load_corpus_baseline_state(path: Path) -> dict[str, Any]:
     except json.JSONDecodeError as exc:
         raise ValueError(f"Corpus baseline state file {path} is not valid JSON.") from exc
     if not isinstance(payload, dict):
-        raise ValueError("Corpus baseline state must be a JSON object.")
+        raise TypeError("Corpus baseline state must be a JSON object.")
     return payload
 
 
@@ -242,7 +242,7 @@ def load_compare_report_summary(path: Path) -> dict[str, Any]:
     except json.JSONDecodeError as exc:
         raise ValueError(f"Corpus compare report file {path} is not valid JSON.") from exc
     if not isinstance(payload, dict):
-        raise ValueError("Corpus compare report must be a JSON object.")
+        raise TypeError("Corpus compare report must be a JSON object.")
 
     metric = payload.get("metric")
     if not isinstance(metric, str) or not metric:
@@ -250,10 +250,10 @@ def load_compare_report_summary(path: Path) -> dict[str, Any]:
 
     has_summary_drift = payload.get("has_summary_drift")
     if not isinstance(has_summary_drift, bool):
-        raise ValueError("Corpus compare report has_summary_drift must be a boolean.")
+        raise TypeError("Corpus compare report has_summary_drift must be a boolean.")
     has_changed_files_context = payload.get("has_changed_files_context", False)
     if not isinstance(has_changed_files_context, bool):
-        raise ValueError("Corpus compare report has_changed_files_context must be a boolean when present.")
+        raise TypeError("Corpus compare report has_changed_files_context must be a boolean when present.")
 
     drift_cases = payload.get("summary_drift_cases")
     if not isinstance(drift_cases, list) or any(not isinstance(item, str) or not item for item in drift_cases):
@@ -264,19 +264,19 @@ def load_compare_report_summary(path: Path) -> dict[str, Any]:
 
     comparisons = payload.get("comparisons")
     if not isinstance(comparisons, list):
-        raise ValueError("Corpus compare report comparisons must be a list.")
+        raise TypeError("Corpus compare report comparisons must be a list.")
 
     drift_details: list[str] = []
     normalized_comparisons: list[dict[str, Any]] = []
     for item in comparisons:
         if not isinstance(item, dict):
-            raise ValueError("Corpus compare report comparisons must contain JSON objects.")
+            raise TypeError("Corpus compare report comparisons must contain JSON objects.")
         name = item.get("name")
         summary_delta = item.get("summary_delta", {})
         if not isinstance(name, str) or not name:
             raise ValueError("Corpus compare report comparison names must be non-empty strings.")
         if not isinstance(summary_delta, dict):
-            raise ValueError("Corpus compare report summary_delta entries must be objects.")
+            raise TypeError("Corpus compare report summary_delta entries must be objects.")
         formatted_delta = _format_local_summary_delta(summary_delta)
         status = item.get("status")
         if status is None:
@@ -820,12 +820,12 @@ def _normalize_corpus_run_record(
             return None
         raise ValueError(f"Corpus baseline state is missing {label} metadata.")
     if not isinstance(data, dict):
-        raise ValueError(f"Corpus baseline state {label} entry must be an object.")
+        raise TypeError(f"Corpus baseline state {label} entry must be an object.")
 
     run_id = data.get("run_id")
     created_at = data.get("created_at")
     if not isinstance(run_id, int):
-        raise ValueError(f"Corpus baseline state {label}.run_id must be an integer.")
+        raise TypeError(f"Corpus baseline state {label}.run_id must be an integer.")
     if not isinstance(created_at, str) or not created_at:
         raise ValueError(f"Corpus baseline state {label}.created_at must be a non-empty string.")
 
@@ -868,20 +868,20 @@ def _normalize_compare_report_summary(
             return None
         raise ValueError("Corpus baseline state is missing compare_report metadata.")
     if not isinstance(data, dict):
-        raise ValueError("Corpus baseline state compare_report entry must be an object.")
+        raise TypeError("Corpus baseline state compare_report entry must be an object.")
 
     metric = data.get("metric")
     if not isinstance(metric, str) or not metric:
         raise ValueError("Corpus baseline state compare_report.metric must be a non-empty string.")
     has_summary_drift = data.get("has_summary_drift")
     if not isinstance(has_summary_drift, bool):
-        raise ValueError("Corpus baseline state compare_report.has_summary_drift must be a boolean.")
+        raise TypeError("Corpus baseline state compare_report.has_summary_drift must be a boolean.")
     has_changed_files_context = data.get("has_changed_files_context", False)
     if not isinstance(has_changed_files_context, bool):
-        raise ValueError("Corpus baseline state compare_report.has_changed_files_context must be a boolean.")
+        raise TypeError("Corpus baseline state compare_report.has_changed_files_context must be a boolean.")
     comparison_count = data.get("comparison_count")
     if not isinstance(comparison_count, int):
-        raise ValueError("Corpus baseline state compare_report.comparison_count must be an integer.")
+        raise TypeError("Corpus baseline state compare_report.comparison_count must be an integer.")
 
     summary_drift_cases = data.get("summary_drift_cases")
     if not isinstance(summary_drift_cases, list) or any(not isinstance(item, str) or not item for item in summary_drift_cases):
@@ -952,22 +952,22 @@ def _normalize_compare_focus_excerpt(
             return None
         raise ValueError("Corpus baseline state is missing compare_focus_excerpt metadata.")
     if not isinstance(data, dict):
-        raise ValueError("Corpus baseline state compare_focus_excerpt entry must be an object.")
+        raise TypeError("Corpus baseline state compare_focus_excerpt entry must be an object.")
 
     content = data.get("content")
     if not isinstance(content, str) or not content.strip():
         raise ValueError("Corpus baseline state compare_focus_excerpt.content must be a non-empty string.")
     highlight_count = data.get("highlight_count")
     if not isinstance(highlight_count, int):
-        raise ValueError("Corpus baseline state compare_focus_excerpt.highlight_count must be an integer.")
+        raise TypeError("Corpus baseline state compare_focus_excerpt.highlight_count must be an integer.")
     total_count = data.get("total_count")
     if not isinstance(total_count, int):
-        raise ValueError("Corpus baseline state compare_focus_excerpt.total_count must be an integer.")
+        raise TypeError("Corpus baseline state compare_focus_excerpt.total_count must be an integer.")
     if total_count < highlight_count:
         raise ValueError("Corpus baseline state compare_focus_excerpt.total_count must be >= highlight_count.")
     truncated = data.get("truncated")
     if not isinstance(truncated, bool):
-        raise ValueError("Corpus baseline state compare_focus_excerpt.truncated must be a boolean.")
+        raise TypeError("Corpus baseline state compare_focus_excerpt.truncated must be a boolean.")
     source = data.get("source")
     if not isinstance(source, str) or not source:
         raise ValueError("Corpus baseline state compare_focus_excerpt.source must be a non-empty string.")
@@ -991,17 +991,17 @@ def _normalize_compare_markdown_excerpt(
             return None
         raise ValueError("Corpus baseline state is missing compare_markdown_excerpt metadata.")
     if not isinstance(data, dict):
-        raise ValueError("Corpus baseline state compare_markdown_excerpt entry must be an object.")
+        raise TypeError("Corpus baseline state compare_markdown_excerpt entry must be an object.")
 
     content = data.get("content")
     if not isinstance(content, str) or not content.strip():
         raise ValueError("Corpus baseline state compare_markdown_excerpt.content must be a non-empty string.")
     truncated = data.get("truncated")
     if not isinstance(truncated, bool):
-        raise ValueError("Corpus baseline state compare_markdown_excerpt.truncated must be a boolean.")
+        raise TypeError("Corpus baseline state compare_markdown_excerpt.truncated must be a boolean.")
     table_row_count = data.get("table_row_count")
     if not isinstance(table_row_count, int):
-        raise ValueError("Corpus baseline state compare_markdown_excerpt.table_row_count must be an integer.")
+        raise TypeError("Corpus baseline state compare_markdown_excerpt.table_row_count must be an integer.")
 
     return {
         "content": content,
@@ -1460,15 +1460,15 @@ def _empty_compare_attribution_summary() -> dict[str, dict[str, Any]]:
 
 def _normalize_compare_category_summary(data: Any) -> dict[str, dict[str, Any]]:
     if not isinstance(data, dict):
-        raise ValueError("Corpus baseline state compare_report.category_summary must be an object.")
+        raise TypeError("Corpus baseline state compare_report.category_summary must be an object.")
     normalized: dict[str, dict[str, Any]] = {}
     for key, _label in _COMPARE_CATEGORY_LABELS:
         category = data.get(key)
         if not isinstance(category, dict):
-            raise ValueError(f"Corpus baseline state compare_report.category_summary.{key} must be an object.")
+            raise TypeError(f"Corpus baseline state compare_report.category_summary.{key} must be an object.")
         count = category.get("count")
         if not isinstance(count, int):
-            raise ValueError(f"Corpus baseline state compare_report.category_summary.{key}.count must be an integer.")
+            raise TypeError(f"Corpus baseline state compare_report.category_summary.{key}.count must be an integer.")
         cases = category.get("cases")
         if not isinstance(cases, list) or any(not isinstance(item, str) or not item for item in cases):
             raise ValueError(
@@ -1482,15 +1482,15 @@ def _normalize_compare_category_summary(data: Any) -> dict[str, dict[str, Any]]:
 
 def _normalize_compare_attribution_summary(data: Any) -> dict[str, dict[str, Any]]:
     if not isinstance(data, dict):
-        raise ValueError("Corpus baseline state compare_report.attribution_summary must be an object.")
+        raise TypeError("Corpus baseline state compare_report.attribution_summary must be an object.")
     normalized: dict[str, dict[str, Any]] = {}
     for key, _label in _COMPARE_ATTRIBUTION_LABELS:
         category = data.get(key)
         if not isinstance(category, dict):
-            raise ValueError(f"Corpus baseline state compare_report.attribution_summary.{key} must be an object.")
+            raise TypeError(f"Corpus baseline state compare_report.attribution_summary.{key} must be an object.")
         count = category.get("count")
         if not isinstance(count, int):
-            raise ValueError(f"Corpus baseline state compare_report.attribution_summary.{key}.count must be an integer.")
+            raise TypeError(f"Corpus baseline state compare_report.attribution_summary.{key}.count must be an integer.")
         cases = category.get("cases")
         if not isinstance(cases, list) or any(not isinstance(item, str) or not item for item in cases):
             raise ValueError(
@@ -1506,11 +1506,11 @@ def _normalize_compare_owner_hints(data: Any, *, label: str) -> list[dict[str, A
     if data is None:
         return []
     if not isinstance(data, list):
-        raise ValueError(f"{label} must be a list of objects.")
+        raise TypeError(f"{label} must be a list of objects.")
     normalized: list[dict[str, Any]] = []
     for item in data:
         if not isinstance(item, dict):
-            raise ValueError(f"{label} must be a list of objects.")
+            raise TypeError(f"{label} must be a list of objects.")
         key = item.get("key")
         hint_label = item.get("label")
         if not isinstance(key, str) or not key:
@@ -1552,11 +1552,11 @@ def _normalize_compare_owner_focus(data: Any, *, label: str) -> list[dict[str, A
     if data is None:
         return []
     if not isinstance(data, list):
-        raise ValueError(f"{label} must be a list of objects.")
+        raise TypeError(f"{label} must be a list of objects.")
     normalized: list[dict[str, Any]] = []
     for item in data:
         if not isinstance(item, dict):
-            raise ValueError(f"{label} must be a list of objects.")
+            raise TypeError(f"{label} must be a list of objects.")
         owner = item.get("owner")
         if not isinstance(owner, str) or not owner:
             raise ValueError(f"{label} owners must be non-empty strings.")
@@ -1575,7 +1575,7 @@ def _normalize_compare_owner_focus(data: Any, *, label: str) -> list[dict[str, A
             raise ValueError(f"{label} priority values must be one of critical/high/medium/low.")
         score = item.get("score")
         if not isinstance(score, int):
-            raise ValueError(f"{label} score values must be integers.")
+            raise TypeError(f"{label} score values must be integers.")
         normalized.append(
             {
                 "owner": owner,
@@ -1593,11 +1593,11 @@ def _normalize_compare_reviewer_candidates(data: Any, *, label: str) -> list[dic
     if data is None:
         return []
     if not isinstance(data, list):
-        raise ValueError(f"{label} must be a list of objects.")
+        raise TypeError(f"{label} must be a list of objects.")
     normalized: list[dict[str, Any]] = []
     for item in data:
         if not isinstance(item, dict):
-            raise ValueError(f"{label} must be a list of objects.")
+            raise TypeError(f"{label} must be a list of objects.")
         owner = item.get("owner")
         kind = item.get("kind")
         priority = item.get("priority")
@@ -1611,7 +1611,7 @@ def _normalize_compare_reviewer_candidates(data: Any, *, label: str) -> list[dic
         if priority not in {"critical", "high", "medium", "low"}:
             raise ValueError(f"{label} priority values must be one of critical/high/medium/low.")
         if not isinstance(score, int):
-            raise ValueError(f"{label} score values must be integers.")
+            raise TypeError(f"{label} score values must be integers.")
         if not isinstance(labels, list) or any(not isinstance(value, str) or not value for value in labels):
             raise ValueError(f"{label} labels must be a list of non-empty strings.")
         if not isinstance(cases, list) or any(not isinstance(value, str) or not value for value in cases):
@@ -1638,7 +1638,7 @@ def _normalize_compare_review_request_plan(data: Any, *, label: str) -> dict[str
     if data is None:
         return None
     if not isinstance(data, dict):
-        raise ValueError(f"{label} must be an object.")
+        raise TypeError(f"{label} must be an object.")
     normalized: dict[str, list[str]] = {}
     for key in ("users", "teams", "unsupported"):
         value = data.get(key, [])
@@ -1650,7 +1650,7 @@ def _normalize_compare_review_request_plan(data: Any, *, label: str) -> dict[str
 
 def _normalize_compare_changed_files(data: Any, *, label: str) -> list[str]:
     if not isinstance(data, list):
-        raise ValueError(f"{label} changed_files must be a list of non-empty strings.")
+        raise TypeError(f"{label} changed_files must be a list of non-empty strings.")
     normalized: list[str] = []
     seen: set[str] = set()
     for item in data:
@@ -1743,7 +1743,7 @@ def _format_local_summary_delta(summary_delta: dict[str, Any]) -> list[str]:
         if not isinstance(name, str) or not name:
             raise ValueError("Corpus compare report summary_delta keys must be non-empty strings.")
         if not isinstance(delta, int):
-            raise ValueError("Corpus compare report summary_delta values must be integers.")
+            raise TypeError("Corpus compare report summary_delta values must be integers.")
         if delta != 0:
             formatted.append(f"{name} {delta:+d}")
     return formatted

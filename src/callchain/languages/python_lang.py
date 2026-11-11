@@ -31,10 +31,8 @@ def _get_parser() -> tree_sitter.Parser:
 def _module_from_path(rel_path: str) -> str:
     """Convert relative file path to Python module name."""
     s = rel_path.replace("/", ".").replace("\\", ".")
-    if s.endswith(".py"):
-        s = s[:-3]
-    if s.endswith(".__init__"):
-        s = s[:-9]
+    s = s.removesuffix(".py")
+    s = s.removesuffix(".__init__")
     return s
 
 
@@ -367,8 +365,6 @@ class PythonPlugin(LanguagePlugin):
         func = call_node.child_by_field_name("function")
         if not func:
             return None
-        if func.type == "identifier":
-            return self._node_text(func, source)
-        elif func.type == "attribute":
+        if func.type == "identifier" or func.type == "attribute":
             return self._node_text(func, source)
         return None

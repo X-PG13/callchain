@@ -95,12 +95,7 @@ class CppPlugin(LanguagePlugin):
                 if f:
                     functions.append(f)
 
-            elif child.type == "class_specifier":
-                c = self._parse_class(child, source, rel, module, functions)
-                if c:
-                    classes.append(c)
-
-            elif child.type == "struct_specifier":
+            elif child.type == "class_specifier" or child.type == "struct_specifier":
                 c = self._parse_class(child, source, rel, module, functions)
                 if c:
                     classes.append(c)
@@ -437,6 +432,4 @@ class CppPlugin(LanguagePlugin):
 def _is_valid_cpp_callee(name: str) -> bool:
     if not name or "\n" in name or "{" in name:
         return False
-    if "(" in name or ")" in name:
-        return False
-    return True
+    return not ("(" in name or ")" in name)

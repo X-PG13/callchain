@@ -27,7 +27,7 @@ def test_load_config_file_returns_empty_for_invalid_toml(tmp_path):
     path.write_text("[analyze\n", encoding="utf-8")
 
     assert load_config_file(path) == {}
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         load_config_file(path, strict=True)
 
 

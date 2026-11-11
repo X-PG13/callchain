@@ -8,8 +8,9 @@ import shlex
 import subprocess
 import sys
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 MIN_SMOKE_COUNTS = {
     "total_files": 1,
@@ -267,7 +268,7 @@ def _load_smoke_analysis_report(path: Path) -> dict[str, Any]:
     except json.JSONDecodeError as exc:
         raise ValueError(f"Install smoke analysis report {path} is not valid JSON.") from exc
     if not isinstance(payload, dict):
-        raise ValueError("Install smoke analysis report must be a JSON object.")
+        raise TypeError("Install smoke analysis report must be a JSON object.")
 
     languages = payload.get("languages")
     if not isinstance(languages, list) or any(not isinstance(item, str) or not item for item in languages):
@@ -277,23 +278,23 @@ def _load_smoke_analysis_report(path: Path) -> dict[str, Any]:
 
     summary = payload.get("summary")
     if not isinstance(summary, dict):
-        raise ValueError("Install smoke analysis report summary must be an object.")
+        raise TypeError("Install smoke analysis report summary must be an object.")
     normalized_summary: dict[str, int] = {}
     for key, minimum in MIN_SMOKE_COUNTS.items():
         value = summary.get(key)
         if not isinstance(value, int):
-            raise ValueError(f"Install smoke analysis report summary.{key} must be an integer.")
+            raise TypeError(f"Install smoke analysis report summary.{key} must be an integer.")
         if value < minimum:
             raise ValueError(f"Install smoke analysis report summary.{key} must be >= {minimum}.")
         normalized_summary[key] = value
 
     total_classes = summary.get("total_classes")
     if not isinstance(total_classes, int):
-        raise ValueError("Install smoke analysis report summary.total_classes must be an integer.")
+        raise TypeError("Install smoke analysis report summary.total_classes must be an integer.")
 
     parse_errors = payload.get("parse_errors")
     if not isinstance(parse_errors, list):
-        raise ValueError("Install smoke analysis report parse_errors must be a list.")
+        raise TypeError("Install smoke analysis report parse_errors must be a list.")
     if parse_errors:
         raise ValueError("Install smoke analysis report parse_errors must be empty.")
 

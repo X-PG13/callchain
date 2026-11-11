@@ -29,8 +29,7 @@ def _get_parser() -> tree_sitter.Parser:
 
 def _module_from_path(rel_path: str) -> str:
     s = rel_path.replace("/", ".").replace("\\", ".")
-    if s.endswith(".java"):
-        s = s[:-5]
+    s = s.removesuffix(".java")
     return s
 
 
@@ -81,11 +80,7 @@ class JavaPlugin(LanguagePlugin):
         imports: list[ImportInfo],
     ) -> None:
         for child in root.children:
-            if child.type == "class_declaration":
-                c = self._parse_class(child, source, rel, module)
-                if c:
-                    classes.append(c)
-            elif child.type == "interface_declaration":
+            if child.type == "class_declaration" or child.type == "interface_declaration":
                 c = self._parse_class(child, source, rel, module)
                 if c:
                     classes.append(c)

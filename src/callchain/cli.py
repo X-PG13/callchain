@@ -2,34 +2,43 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import sys
-from typing import Any
+from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import click
 from rich.console import Console
 from rich.table import Table
 
+import callchain.languages.c_lang
+import callchain.languages.cpp_lang
+import callchain.languages.go_lang
+import callchain.languages.java_lang
+import callchain.languages.javascript_lang
+import callchain.languages.python_lang
+import callchain.languages.rust_lang
 from callchain import __version__
 from callchain.core.analyzer import Analyzer
 from callchain.core.callgraph import CallGraphBuilder
 from callchain.core.chain_enum import ChainEnumerator
 from callchain.core.config import load_config, load_config_file
 from callchain.core.models import AnalysisResult, Language
-from callchain.output.json_output import write_chains_jsonl, write_json
 from callchain.output.dot_output import write_dot
-from callchain.output.mermaid_output import write_mermaid_callgraph
 from callchain.output.html_output import write_html
+from callchain.output.json_output import write_chains_jsonl, write_json
+from callchain.output.mermaid_output import write_mermaid_callgraph
 
-# Ensure all language plugins are registered on import
-import callchain.languages.python_lang  # noqa: F401
-import callchain.languages.javascript_lang  # noqa: F401
-import callchain.languages.java_lang  # noqa: F401
-import callchain.languages.go_lang  # noqa: F401
-import callchain.languages.rust_lang  # noqa: F401
-import callchain.languages.c_lang  # noqa: F401
-import callchain.languages.cpp_lang  # noqa: F401
+# Importing a language module registers its plugin via LanguagePlugin.__init_subclass__.
+_LANGUAGE_PLUGINS = (
+    callchain.languages.c_lang,
+    callchain.languages.cpp_lang,
+    callchain.languages.go_lang,
+    callchain.languages.java_lang,
+    callchain.languages.javascript_lang,
+    callchain.languages.python_lang,
+    callchain.languages.rust_lang,
+)
 
 console = Console()
 
@@ -69,7 +78,7 @@ def _load_user_config(project: Path, config_path: str | None) -> dict[str, Any]:
 
     try:
         return load_config_file(config_file, strict=True)
-    except Exception as exc:
+    except (OSError, ValueError) as exc:
         console.print(f"[red]Error loading config '{config_path}': {exc}[/red]")
         sys.exit(1)
 

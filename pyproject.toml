@@ -52,8 +52,7 @@ dev = [
     "pytest>=9.2.0",
     "pytest-cov",
     "black",
-    # 0.16+ expands the default rule set and fails `ruff check` on this tree.
-    "ruff>=0.11.13,<0.16",
+    "ruff>=0.17.4,<0.18",
     "mypy",
     "pip-audit>=2.7",
     "build",
@@ -99,6 +98,8 @@ target-version = "py310"
 line-length = 120
 
 [tool.ruff.lint.per-file-ignores]
+# Parse and call extraction record arbitrary plugin failures instead of aborting the project.
+"src/callchain/core/callgraph.py" = ["BLE001"]
 "tests/fixtures/**/*.py" = ["F401"]
 
 [tool.mypy]

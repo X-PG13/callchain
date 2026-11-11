@@ -3,7 +3,6 @@
 import os
 from pathlib import Path
 
-
 GLOBAL_VAR = 42
 
 
