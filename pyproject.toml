@@ -53,7 +53,7 @@ dev = [
     "pytest-cov",
     "black",
     # 0.16+ expands the default rule set and fails `ruff check` on this tree.
-    "ruff>=0.11.13,<0.16",
+    "ruff>=0.17.4,<0.18",
     "mypy",
     "pip-audit>=2.7",
     "build",
